@@ -1,0 +1,23 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}Worker{% endblock %}
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/worker.css') }}">
+{% endblock %}
+{% block content %}
+    <h1 style="color:#424949">Unloading Worker</h1>
+    <br>
+    <h2>
+        <b>Order ID</b> {{order_id}}   <b>Address</b> {{address}}
+        <br>
+        <br>
+        <span style="color:#F4511E;"><b>Red: {{items['r']}} </b></span><br>
+        <span style="color:#2ECC71;"><b>Green: {{items['g']}} </b></span><br>
+        <span style="color:#03A9F4;"><b>Blue: {{items['b']}} </b></span>
+    </h2>
+    <br>
+    <br>
+    <form action="/unloading-success">
+        <button class="btn btn-warning btn-lg" type="submit">Confirm</button>
+    </form>
+{% endblock %}

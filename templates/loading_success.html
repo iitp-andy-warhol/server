@@ -1,0 +1,16 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}Worker{% endblock %}
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/worker.css') }}">
+{% endblock %}
+{% block content %}
+    <h1 style="color:#424949";">Loading Worker</h1>
+    <br>
+    <h2>Loading Complete!</h2>
+    <br>
+    <br>
+    <form action="/loading">
+        <button class="btn btn-info btn-lg" type="submit">Back</button>
+    </form>
+{% endblock %}
