@@ -184,20 +184,11 @@ def m_mode_off():
     print("M-mode Off")
 
 
-# def get_obstacle():
-#     global obstacle
-#     obstacle.speed(0)
-#     obstacle.shape("square")  # original size is 20*20
-#     obstacle.color("orange")
-#     obstacle.shapesize(stretch_wid=1, stretch_len=1)
-#     obstacle.penup()
-#     obstacle.goto(loc_st34)
-#     obstacle = turtle.Turtle()
-#
-# def rm_obstacle():
-#     global obstacle
-#     obstacle.clear()
-#     obstacle.ht()
+def get_obstacle():
+    obstacle.goto(loc_st34)
+
+def rm_obstacle():
+    obstacle.goto(0, 500)
 
 
 # Simulator
@@ -206,8 +197,7 @@ wn.title("AndyCar")
 wn.bgcolor("black")
 wn.setup(width=600, height=800)
 wn.tracer(0)
-# obstacle = turtle.Turtle()
-# safezone = 10
+
 
 # Position
 cx, cy = (0, 0)
@@ -331,12 +321,24 @@ st6.penup()
 st6.goto(lx-20, by)
 
 
+# Obstacle
+obstacle = turtle.Turtle()
+obstacle.speed(0)
+obstacle.shape("square")  # original size is 20*20
+obstacle.color("orange")
+obstacle.shapesize(stretch_wid=1, stretch_len=1)
+obstacle.penup()
+obstacle.goto(0, 500)
+safezone = 20
+
+
+
 # Car
 car_speed = 10
 car = turtle.Turtle()
 car.shape("square")  # original size is 20*20
 car.color("blue")
-car.shapesize(stretch_wid=4, stretch_len=4)
+car.shapesize(stretch_wid=3, stretch_len=3)
 car.penup()
 car.goto(bx, by)
 car.dx = car_speed
@@ -422,8 +424,8 @@ pen.write('flags', align="center", font=("Courier", 11, "normal"))
 wn.listen()
 wn.onkeypress(m_mode_on, "z")
 wn.onkeypress(m_mode_off, "x")
-# wn.onkeypress(get_obstacle, "a")
-# wn.onkeypress(rm_obstacle, "s")
+wn.onkeypress(get_obstacle, "a")
+wn.onkeypress(rm_obstacle, "s")
 
 
 
@@ -533,10 +535,10 @@ while True:
         stop = True
         action = "M-mode"
         msgstop = True
-    # elif obstacle.ycor() - safezone < car.ycor() < obstacle.ycor() + safezone and obstacle.xcor() - safezone < car.xcor() < obstacle.xcor() + safezone:
-    #     stop = True
-    #     print('obstacle')
-    #     action = "obstacle"
+    elif obstacle.ycor() - safezone < car.ycor() < obstacle.ycor() + safezone and obstacle.xcor() - safezone < car.xcor() < obstacle.xcor() + safezone:
+        stop = True
+        print('obstacle')
+        action = "obstacle"
     elif address == 0 and start and turn0:
         action = "moving"
         ccw = change_flag(ccw)
