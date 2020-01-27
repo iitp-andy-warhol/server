@@ -136,7 +136,7 @@ class ControlCenter:
         self.update_order_grp_flag = mp.Manager().Value('flag', False)
         self.update_order_grp_flag_lock = mp.Lock()
 
-        self.next_orderset = {'init': 'init'}
+        self.next_orderset = {'init': 'init', 'item': {'r':99,'g':99,'b':99}}
         self.next_orderset_lock = mp.Lock()
 
         self.send_next_orderset_flag = False
@@ -150,7 +150,7 @@ class ControlCenter:
         self.l_dumped = {}
         self.l_orderset = {}
 
-        self.scheduling_required_flag = mp.Manager().Value('flag', False)
+        self.scheduling_required_flag = mp.Manager().Value('flag', True)
         self.scheduling_required_flag_lock = mp.Lock()
         self.schedule_changed_flag = mp.Manager().Value('flag', False)
         self.schedule_changed_flag_lock = mp.Lock()
@@ -165,7 +165,8 @@ class ControlCenter:
 
         self.got_init_robot_status = False
         self.got_init_orderset = False
-        self.robot_status = mp.Manager().dict({'operating_order': {'address': 99999, 'id': 99999}})
+        self.robot_status = mp.Manager().dict(
+            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}}, 'orderid':999999})
         self.robot_status_log = []
 
     def ControlDB(self):
@@ -293,7 +294,8 @@ class ControlCenter:
                         self.schedule_changed_flag.value = False
                         self.schedule_changed_flag_lock.release()
 
-                if self.robot_status['operating_order']['id'] == 9999 and self.robot_status['operating_order']['address'] == 0 and self.robot_status['current_address'] == 0:
+                if self.robot_status['operating_order']['id'] == 9999 and self.robot_status['current_address'] == 0\
+                        and self.got_init_orderset:
                     if not did_dummy:
                         did_dummy = True
 
@@ -301,11 +303,19 @@ class ControlCenter:
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
 
-                        self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
+                        print(self.next_orderset_idx.value)
+                        try:
+                            self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
+                            self.send_next_orderset_flag_lock.acquire()
+                            self.send_next_orderset_flag = True
+                            self.send_next_orderset_flag_lock.release()
+                        except:
+                            self.next_orderset_idx_lock.acquire()
+                            self.next_orderset_idx.value = -1
+                            self.next_orderset_idx_lock.release()
 
-                        self.send_next_orderset_flag_lock.acquire()
-                        self.send_next_orderset_flag = True
-                        self.send_next_orderset_flag_lock.release()
+                            self.got_init_orderset = False
+
 
                 if self.robot_status['action'] == 'unloading':
                     did_dummy = False
@@ -563,10 +573,11 @@ class ControlCenter:
 
             self.Print_info()
 
-
             time.sleep(0.5)
 
 
 if __name__ == "__main__":
     cc = ControlCenter()
     cc.Operate()
+
+#킬러 프로세스
