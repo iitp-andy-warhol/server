@@ -172,13 +172,42 @@ def Go():
             car.goto(loc_st0)
 
 
+def m_mode_on():
+    global mmode_flag
+    mmode_flag = True
+    print("M-mode On")
+
+
+def m_mode_off():
+    global mmode_flag
+    mmode_flag = False
+    print("M-mode Off")
+
+
+# def get_obstacle():
+#     global obstacle
+#     obstacle.speed(0)
+#     obstacle.shape("square")  # original size is 20*20
+#     obstacle.color("orange")
+#     obstacle.shapesize(stretch_wid=1, stretch_len=1)
+#     obstacle.penup()
+#     obstacle.goto(loc_st34)
+#     obstacle = turtle.Turtle()
+#
+# def rm_obstacle():
+#     global obstacle
+#     obstacle.clear()
+#     obstacle.ht()
+
+
 # Simulator
 wn = turtle.Screen()
 wn.title("AndyCar")
 wn.bgcolor("black")
 wn.setup(width=600, height=800)
 wn.tracer(0)
-
+# obstacle = turtle.Turtle()
+# safezone = 10
 
 # Position
 cx, cy = (0, 0)
@@ -303,7 +332,7 @@ st6.goto(lx-20, by)
 
 
 # Car
-car_speed = 20
+car_speed = 10
 car = turtle.Turtle()
 car.shape("square")  # original size is 20*20
 car.color("blue")
@@ -371,7 +400,7 @@ pen.color("white")
 pen.penup()
 pen.hideturtle()
 pen.goto(0, 0)
-pen.write('flags', align="center", font=("Courier", 5, "normal"))
+pen.write('flags', align="center", font=("Courier", 11, "normal"))
 #
 # red = turtle.Turtle()
 # red.speed(0)
@@ -390,8 +419,12 @@ pen.write('flags', align="center", font=("Courier", 5, "normal"))
 # head.write(direction, align="left", font=("Courier", 20, "normal"))
 
 
-# wn.listen()
-# wn.onkeypress(Go, "Right")
+wn.listen()
+wn.onkeypress(m_mode_on, "z")
+wn.onkeypress(m_mode_off, "x")
+# wn.onkeypress(get_obstacle, "a")
+# wn.onkeypress(rm_obstacle, "s")
+
 
 
 get_flag, ccw = make_TF(2, True)
@@ -497,9 +530,13 @@ while True:
 
     # stop handler
     if mmode_flag:
-        action = "M-mode"
         stop = True
+        action = "M-mode"
         msgstop = True
+    # elif obstacle.ycor() - safezone < car.ycor() < obstacle.ycor() + safezone and obstacle.xcor() - safezone < car.xcor() < obstacle.xcor() + safezone:
+    #     stop = True
+    #     print('obstacle')
+    #     action = "obstacle"
     elif address == 0 and start and turn0:
         action = "moving"
         ccw = change_flag(ccw)
@@ -531,6 +568,9 @@ while True:
         action = "unloading"
         stop = True
         msgstop = True
+        if turn1:
+            ccw = change_flag(ccw)
+            turn1 = False
         if msg2:
             print("unloading")
             msg2 = False
@@ -542,6 +582,9 @@ while True:
         action = "unloading"
         stop = True
         msgstop = True
+        if turn3:
+            ccw = change_flag(ccw)
+            turn3 = False
         if msg3:
             print("unloading")
             msg3 = False
@@ -555,6 +598,9 @@ while True:
         action = "unloading"
         stop = True
         msgstop = True
+        if turn4:
+            ccw = change_flag(ccw)
+            turn4 = False
         if msg4:
             print("unloading")
             msg4 = False
@@ -566,6 +612,9 @@ while True:
         action = "unloading"
         stop = True
         msgstop = True
+        if turn5:
+            ccw = change_flag(ccw)
+            turn5 = False
         if msg5:
             print("unloading")
             msg5 = False
@@ -577,6 +626,9 @@ while True:
         action = "unloading"
         stop = True
         msgstop = True
+        if turn6:
+            ccw = change_flag(ccw)
+            turn6 = False
         if msg6:
             print("unloading")
             msg6 = False
@@ -599,7 +651,7 @@ while True:
 
 
     pen.clear()
-    pen.write("address: {}\naction: {}\nstart: {}\nstop: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\ngood to go loading/unloading: {}/{}".format(current_address, action, start, stop, 0, stop0, 1, stop1, 2, stop2, 3, stop3, 4, stop4, 5, stop5, 6, stop6, good_to_go_loading, good_to_go_unloading), align="center", font=("Courier", 10, "normal"))
+    pen.write("path: {}\ndirection: {}\naddress: {}\naction: {}\nstart: {}\nstop: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\ngood to go loading/unloading: {}/{}".format(path, direction, current_address, action, start, stop, 0, stop0, 1, stop1, 2, stop2, 3, stop3, 4, stop4, 5, stop5, 6, stop6, good_to_go_loading, good_to_go_unloading), align="center", font=("Courier", 11, "normal"))
 
     # time.sleep(0.2)
 
