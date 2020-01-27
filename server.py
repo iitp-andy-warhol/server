@@ -543,6 +543,7 @@ class ControlCenter:
 
                       '\n',
                       sep='\n')
+
             time.sleep(0.5)
 
     def Operate(self):
@@ -567,12 +568,20 @@ class ControlCenter:
                                  self.next_orderset_idx,
                                  self.next_orderset_idx_lock,
                                 ))
+
+        t_ControlDB.daemon = True
+        t_UIServer.daemon = True
+        t_Manager.daemon = True
+        t_RobotSocket.daemon = True
+        t_PrintLog.daemon = True
+
         t_ControlDB.start()
         t_UIServer.start()
         t_Manager.start()
         t_RobotSocket.start()
         t_PrintLog.start()
         p_Schedule.start()
+
 
         input()
         p_Schedule.terminate()
