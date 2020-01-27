@@ -177,7 +177,7 @@ class ControlCenter:
         passwd = 'pass'
         dbname = 'orderdb'
 
-        cnx = mysql.connector.connect(host=host, user=user, password=passwd)
+        cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
         cursor.execute(f"USE {dbname};")
 
