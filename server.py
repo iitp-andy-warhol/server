@@ -119,6 +119,8 @@ class ControlCenter:
         self.pending_df = mp.Manager().Namespace()
         self.pending_df.df = pd.DataFrame(columns=self.pending_pdf_colname)
         self.pending_df_lock = mp.Lock()
+        self.just_get_db_flag = False
+        self.just_get_db_flag_lock = th.Lock()
 
         self.fulfill_order_flag = False
         self.fulfill_order_flag_lock = th.Lock()
@@ -128,12 +130,12 @@ class ControlCenter:
         self.order_grp = od.makeOrderGroup()
         self.order_grp_lock = th.Lock()
 
-        self.existing_order_grp_profit = mp.Value('i',-1)
+        self.existing_order_grp_profit = mp.Value('i',0)
         self.existing_order_grp_profit_lock = mp.Lock()
 
-        self.order_grp_new = mp.Manager().dict({'dict': None})
-
+        self.order_grp_new = mp.Manager().dict({'dict': None, 'ordersets': []})
         self.order_grp_new_lock = mp.Lock()
+
         self.update_order_grp_flag = mp.Manager().Value('flag', False)
         self.update_order_grp_flag_lock = mp.Lock()
 
@@ -177,7 +179,7 @@ class ControlCenter:
         passwd = 'pass'
         dbname = 'orderdb'
 
-        cnx = mysql.connector.connect(host=host, user=user, password=passwd)
+        cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
         cursor.execute(f"USE {dbname};")
 
@@ -191,8 +193,12 @@ class ControlCenter:
 
             # 5초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
             # 120초동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
-            if time.time() - getdb_time > 5:
-                cnx = mysql.connector.connect(host=host, user=user, password=passwd)
+            if time.time() - getdb_time > 5 or self.just_get_db_flag:
+                self.just_get_db_flag_lock.acquire()
+                self.just_get_db_flag = False
+                self.just_get_db_flag_lock.release()
+
+                cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
                 cursor = cnx.cursor()
                 cursor.execute(f"USE {dbname};")
 
@@ -213,6 +219,7 @@ class ControlCenter:
                         if id_ not in list(self.pending_df.df['id']):
                             count += 1
                             if count >= 3:
+
                                 self.pending_df_lock.acquire()
                                 self.pending_df.df = pending_df
                                 self.pending_df_lock.release()
@@ -224,7 +231,7 @@ class ControlCenter:
                                 break
 
             if self.fulfill_order_flag:
-                cnx = mysql.connector.connect(host=host, user=user, password=passwd)
+                cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
                 cursor = cnx.cursor()
                 cursor.execute(f"USE {dbname};")
 
@@ -270,6 +277,8 @@ class ControlCenter:
                 self.existing_order_grp_profit.value = self.order_grp['profit']
                 self.existing_order_grp_profit_lock.release()
 
+                self.order_grp_len = len(self.order_grp['ordersets'])
+
                 self.update_order_grp_flag_lock.acquire()
                 self.update_order_grp_flag.value = False
                 self.update_order_grp_flag_lock.release()
@@ -283,17 +292,20 @@ class ControlCenter:
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
 
-                        self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
+                        if self.next_orderset_idx.value <= self.order_grp_len -1:
 
-                        self.send_next_orderset_flag_lock.acquire()
-                        self.send_next_orderset_flag = True
-                        self.send_next_orderset_flag_lock.release()
 
-                        self.got_init_orderset = True
+                            self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
 
-                        self.schedule_changed_flag_lock.acquire()
-                        self.schedule_changed_flag.value = False
-                        self.schedule_changed_flag_lock.release()
+                            self.send_next_orderset_flag_lock.acquire()
+                            self.send_next_orderset_flag = True
+                            self.send_next_orderset_flag_lock.release()
+
+                            self.got_init_orderset = True
+
+                            self.schedule_changed_flag_lock.acquire()
+                            self.schedule_changed_flag.value = False
+                            self.schedule_changed_flag_lock.release()
 
                 if self.robot_status['operating_order']['id'] == 9999 and self.robot_status['current_address'] == 0\
                         and self.got_init_orderset:
@@ -304,19 +316,28 @@ class ControlCenter:
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
 
-                        print(self.next_orderset_idx.value)
-                        try:
+                        if self.next_orderset_idx.value <= self.order_grp_len-1:
+                            print('**************************',self.next_orderset_idx.value, '**', self.order_grp_len)
                             self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
                             self.send_next_orderset_flag_lock.acquire()
                             self.send_next_orderset_flag = True
                             self.send_next_orderset_flag_lock.release()
-                        except:
+                        else:
+
                             self.next_orderset_idx_lock.acquire()
                             self.next_orderset_idx.value = -1
                             self.next_orderset_idx_lock.release()
 
-                            self.got_init_orderset = False
+                            self.order_grp_lock.acquire()
+                            self.order_grp = {'dict': None, 'orderset': []}
+                            self.order_grp_lock.release()
 
+                            self.got_init_orderset = False
+                            self.existing_order_grp_profit.value = 0
+
+                            self.just_get_db_flag_lock.acquire()
+                            self.just_get_db_flag = True
+                            self.just_get_db_flag_lock.release()
 
                 if self.robot_status['action'] == 'unloading':
                     did_dummy = False
@@ -582,10 +603,10 @@ class ControlCenter:
         t_PrintLog.start()
         p_Schedule.start()
 
-
         input()
         p_Schedule.terminate()
-        os._exit(0)
+
+
 
 
 if __name__ == "__main__":
