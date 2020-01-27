@@ -6,6 +6,7 @@ import time
 import orderdic as od
 from socket import *
 import pickle
+import os
 
 
 def Schedule(existing_order_grp_profit,
@@ -494,53 +495,55 @@ class ControlCenter:
         app.run(host='0.0.0.0', port=8080)
 
     def Print_info(self):
-        robot_status_print = {}
-        if self.robot_status['operating_order']['address'] == 99999:
-            robot_status_print = {
-                'direction': None,
-                'current_address': None,
-                # 'next_address': None,
-                'action': None,
-                'current_basket': None,
-                'operating_orderset': None,
-                'operating_order': None,
-                'log_time': None
-            }
-        else:
-            robot_status_print = self.robot_status
-        with pd.option_context('display.max_rows', None, 'display.max_columns',
-                               None):  # more options can be specified also
-            print(f"##------------------------------------{time.strftime('%c', time.localtime(time.time()))}------------------------------------##",
-                  f'pending_df.df: \n{self.pending_df.df}',
-                  f'got_init_robot_status:++++++++++{self.got_init_robot_status}',
-                  f'got_init_orderset:--------------{self.got_init_orderset}',
-                  f'scheduling_required_flag.value:-{self.scheduling_required_flag.value}',
-                  f'update_order_grp_flag:----------{self.update_order_grp_flag.value}',
-                  f'schedule_changed_flag.value:++++{self.schedule_changed_flag.value}',
-                  f'send_next_orderset_flag:--------{self.send_next_orderset_flag}',
-                  f'loading_complete_flag:----------{self.loading_complete_flag}',
-                  f'unloading_complete_flag:++++++++{self.unloading_complete_flag}',
-                  f'fulfill_order_flag:-------------{self.fulfill_order_flag}',
-                  f'update_inventory_flag:++++++++++{self.update_inventory_flag}',
-                  '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
-                  f'order_grp:----------------------{self.order_grp}',
-                  f'next_orderset_idx.value:++++++++{self.next_orderset_idx.value}',
-                  f'next_orderset:++++++++++++++++++{self.next_orderset}',
-                  f'inventory:----------------------{self.inventory}',
-                  '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
-                  f'=============== robot_status ===============',
-                  f"| log_time: {robot_status_print['log_time']}",
-                  f"| diredction: {robot_status_print['direction']}",
-                  f"| current_address: {robot_status_print['current_address']}",
-                  # f"| next_address: {robot_status_print['next_address']}",
-                  f"| action: {robot_status_print['action']}",
-                  f"| current_basket: {robot_status_print['current_basket']}",
-                  f"| operating_orderset: {robot_status_print['operating_orderset']}",
-                  f"| operating_order: {robot_status_print['operating_order']}",
-                  f'===========================================',
+        while True:
+            robot_status_print = {}
+            if self.robot_status['operating_order']['address'] == 99999:
+                robot_status_print = {
+                    'direction': None,
+                    'current_address': None,
+                    # 'next_address': None,
+                    'action': None,
+                    'current_basket': None,
+                    'operating_orderset': None,
+                    'operating_order': None,
+                    'log_time': None
+                }
+            else:
+                robot_status_print = self.robot_status
+            with pd.option_context('display.max_rows', None, 'display.max_columns',
+                                   None):  # more options can be specified also
+                print(f"##------------------------------------{time.strftime('%c', time.localtime(time.time()))}------------------------------------##",
+                      f'pending_df.df: \n{self.pending_df.df}',
+                      f'got_init_robot_status:++++++++++{self.got_init_robot_status}',
+                      f'got_init_orderset:--------------{self.got_init_orderset}',
+                      f'scheduling_required_flag.value:-{self.scheduling_required_flag.value}',
+                      f'update_order_grp_flag:----------{self.update_order_grp_flag.value}',
+                      f'schedule_changed_flag.value:++++{self.schedule_changed_flag.value}',
+                      f'send_next_orderset_flag:--------{self.send_next_orderset_flag}',
+                      f'loading_complete_flag:----------{self.loading_complete_flag}',
+                      f'unloading_complete_flag:++++++++{self.unloading_complete_flag}',
+                      f'fulfill_order_flag:-------------{self.fulfill_order_flag}',
+                      f'update_inventory_flag:++++++++++{self.update_inventory_flag}',
+                      '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
+                      f'order_grp:----------------------{self.order_grp}',
+                      f'next_orderset_idx.value:++++++++{self.next_orderset_idx.value}',
+                      f'next_orderset:++++++++++++++++++{self.next_orderset}',
+                      f'inventory:----------------------{self.inventory}',
+                      '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
+                      f'=============== robot_status ===============',
+                      f"| log_time: {robot_status_print['log_time']}",
+                      f"| diredction: {robot_status_print['direction']}",
+                      f"| current_address: {robot_status_print['current_address']}",
+                      # f"| next_address: {robot_status_print['next_address']}",
+                      f"| action: {robot_status_print['action']}",
+                      f"| current_basket: {robot_status_print['current_basket']}",
+                      f"| operating_orderset: {robot_status_print['operating_orderset']}",
+                      f"| operating_order: {robot_status_print['operating_order']}",
+                      f'===========================================',
 
-                  '\n',
-                  sep='\n')
+                      '\n',
+                      sep='\n')
+            time.sleep(0.5)
 
     def Operate(self):
         largePrint('Command Center is operated')
@@ -548,6 +551,7 @@ class ControlCenter:
         t_UIServer = th.Thread(target=self.UIServer, args=())
         t_Manager = th.Thread(target=self.Manager, args=())
         t_RobotSocket = th.Thread(target=self.RobotSocket, args=())
+        t_PrintLog = th.Thread(target=self.Print_info, args=())
         p_Schedule = mp.Process(target=Schedule,
                                 args=(
                                  self.existing_order_grp_profit,
@@ -564,20 +568,17 @@ class ControlCenter:
                                  self.next_orderset_idx_lock,
                                 ))
         t_ControlDB.start()
-        p_Schedule.start()
         t_UIServer.start()
         t_Manager.start()
         t_RobotSocket.start()
+        t_PrintLog.start()
+        p_Schedule.start()
 
-        while True:
-
-            self.Print_info()
-
-            time.sleep(0.5)
+        input()
+        p_Schedule.terminate()
+        os._exit(0)
 
 
 if __name__ == "__main__":
     cc = ControlCenter()
     cc.Operate()
-
-#킬러 프로세스
