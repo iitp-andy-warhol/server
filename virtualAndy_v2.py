@@ -187,6 +187,7 @@ def m_mode_off():
 def get_obstacle():
     obstacle.goto(loc_st34)
 
+
 def rm_obstacle():
     obstacle.goto(0, 500)
 
@@ -403,7 +404,7 @@ pen.penup()
 pen.hideturtle()
 pen.goto(0, 0)
 pen.write('flags', align="center", font=("Courier", 11, "normal"))
-#
+
 # red = turtle.Turtle()
 # red.speed(0)
 # red.color("white")
@@ -431,12 +432,13 @@ wn.onkeypress(rm_obstacle, "s")
 
 get_flag, ccw = make_TF(2, True)
 good_to_go_loading, good_to_go_unloading, mmode_flag = make_TF(3, False)
-receive_command_flag = True
+# receive_command_flag = True
 start, stop0 = False, True
 stop1, stop2, stop3, stop4, stop5, stop6, msg0, msg1, msg2, msg3, msg4, msg5, msg6, turn0, turn1, turn2, turn3, turn4, turn5, turn6 = make_TF(20, False)
 
 stop = False
 msgstop = False
+current_path_id = None
 
 # Main game loop
 while True:
@@ -446,13 +448,12 @@ while True:
     if command['path'] == (0,):
         start = False
 
-    elif action != "moving" and action != "M-mode":
+    else:  # action == 'unloading' or receive_command_flag: and action != "M-mode":
+        # receive_command_flag = False
         path_id = command['path_id']
-        current_path_id = None
-        if path_id != current_path_id:
-            if command['path'] is not None:
-                path = command['path']
-                current_path_id = np.copy(path_id)
+        if path_id != current_path_id and command['path'] is not None:
+            path = command['path']
+            current_path_id = np.copy(path_id)
 
         if command['message'] == 'loading_complete':
             good_to_go_loading = True
@@ -461,6 +462,7 @@ while True:
         if command['message'] == 'unloading_complete':
             good_to_go_unloading = True
             command['message'] = None
+
 
     # path to flag
     if get_flag:
