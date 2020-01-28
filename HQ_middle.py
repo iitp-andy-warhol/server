@@ -42,11 +42,8 @@ def send_robot_status(server, client):
         print("status send time: ", time.strftime('%c', time.localtime(time.time())))
 
 
-        time.sleep(0.1)
-
-
 def receive_robot_command(server, client):
-    global command, massage, operating_orderset, operating_order, operating_order_idx, operating_order_idx_lock
+    global command, massage, operating_orderset, operating_order, operating_order_idx, operating_order_idx_lock, next_orderset
     global need_after_loading_job_flag, need_after_loading_job_flag_lock, need_after_unloading_job_flag, need_after_unloading_job_flag_lock
     global current_basket, action
     current_massage = None
@@ -59,11 +56,16 @@ def receive_robot_command(server, client):
             current_massage = np.copy(massage)
 
         if massage['orderset'] is not None:
-            operating_orderset = massage['orderset']
+            next_orderset = massage['orderset']
+
+        if next_orderset is not None and massage['massage'] is not None:
+            operating_orderset = next_orderset
 
             operating_order_idx_lock.acquire()
             operating_order_idx = 0  # reset idx
             operating_order_idx_lock.release()
+
+            next_orderset = None
 
         if massage['massage'] == 'loading_complete':
             current_basket = operating_orderset['item']  # update basket
@@ -103,6 +105,7 @@ action = 'loading'
 current_basket = {'r': 0, 'g': 0, 'b': 0}
 operating_orderset = None
 operating_order = {'address': 0, 'id': 99999}
+next_orderset = None
 
 operating_order_idx = 0
 operating_order_idx_lock = th.Lock()
@@ -156,4 +159,3 @@ t_receive.start()
 while True:
     # print(operating_order_idx)
     time.sleep(1)
-
