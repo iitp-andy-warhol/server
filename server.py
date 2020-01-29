@@ -180,7 +180,7 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
+            {'operating_order': {'address': 99999, 'id': 9999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
              'operating_orderset':{'item': {'r':99,'g':99,'b':99}}})
         self.robot_status_log = []
 
@@ -351,7 +351,7 @@ class ControlCenter:
                             self.got_init_orderset = False
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
-                                {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 99, 'g': 99, 'b': 99},
+                                {'operating_order': {'address': 99999, 'id': 9999, 'item': {'r': 99, 'g': 99, 'b': 99},
                                                      'orderid': [999999]}})
 
                             self.just_get_db_flag_lock.acquire()
