@@ -546,6 +546,7 @@ while True:
         ccw = change_flag(ccw)
         turn0 = False
     elif address == 0 and stop0 and not start:
+        # if not stop1 and not stop2 and not stop3 and not stop4 and not stop5 and not stop6:
         action = "loading"
         stop = True
         msgstop = True
@@ -658,5 +659,3 @@ while True:
     pen.write("path: {}\ndirection: {}\naddress: {}\naction: {}\nstart: {}\nstop: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\ngood to go loading/unloading: {}/{}".format(path, direction, current_address, action, start, stop, 0, stop0, 1, stop1, 2, stop2, 3, stop3, 4, stop4, 5, stop5, 6, stop6, good_to_go_loading, good_to_go_unloading), align="center", font=("Courier", 11, "normal"))
 
     # time.sleep(0.2)
-
-
