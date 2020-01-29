@@ -74,8 +74,6 @@ def Schedule(existing_order_grp_profit,
         # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)
 
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', new_order_grp['profit'])
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', existing_order_grp_profit)
         if new_order_grp['profit'] - existing_order_grp_profit > threshold:
             return new_order_grp
         else:
@@ -84,14 +82,10 @@ def Schedule(existing_order_grp_profit,
     while True:
         if scheduling_required_flag.value:
             print('@@@@@@@@@@@ Making new schedule @@@@@@@@@@@')
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!스케줄함수내부',existing_order_grp_profit.value)
 
             pdf_for_scheduling = pending_df.df.copy()
-
-            print('오퍼레이팅 오더아이디????????????????', operating_order_id.l)
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
 
-            print('걸러진pdf', pdf_for_scheduling)
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling)
             if new_order_grp is not None:
                 order_grp_new_lock.acquire()
@@ -193,9 +187,12 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'operating_order': {'address': 99999, 'id': 9999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
+            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
              'operating_orderset':{'item': {'r':99,'g':99,'b':99}}})
         self.robot_status_log = []
+
+        self.loading_complete_id = 88888
+        self.unloading_complete_id = 88888
 
     def ControlDB(self):
         largePrint('ControlDB is operated')
@@ -274,7 +271,6 @@ class ControlCenter:
                             f"fulfilled_blue=fulfilled_blue + {b} " \
                             f"WHERE id={orderID};"
 
-                    print(query,'*************************************************************')
                     cursor.execute(query)
                     cnx.commit()
 
@@ -321,8 +317,7 @@ class ControlCenter:
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
 
-                        if self.next_orderset_idx.value <= self.order_grp_len -1:
-
+                        if self.next_orderset_idx.value <= self.order_grp_len - 1:
 
                             self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
 
@@ -346,7 +341,6 @@ class ControlCenter:
                         self.next_orderset_idx_lock.release()
 
                         if self.next_orderset_idx.value <= self.order_grp_len-1:
-                            print('**************************',self.next_orderset_idx.value, '**', self.order_grp_len)
                             self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
                             self.send_next_orderset_flag_lock.acquire()
                             self.send_next_orderset_flag = True
@@ -364,7 +358,7 @@ class ControlCenter:
                             self.got_init_orderset = False
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
-                                {'operating_order': {'address': 99999, 'id': 9999, 'item': {'r': 99, 'g': 99, 'b': 99},
+                                {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 99, 'g': 99, 'b': 99},
                                                      'orderid': [999999]}})
 
                             self.just_get_db_flag_lock.acquire()
@@ -393,7 +387,7 @@ class ControlCenter:
             # Update inventory
             if self.update_inventory_flag:
                 if self.loading_complete_flag:
-                    item = self.next_orderset['item']
+                    item = self.robot_status['operating_order']['item']
                     self.inventory_lock.acquire()
                     self.inventory['r'] -= item['r']
                     self.inventory['g'] -= item['g']
@@ -426,12 +420,10 @@ class ControlCenter:
                     }
 
                     # Send next order set to HQ as HQ.operating_orderset
-                    if self.send_next_orderset_flag \
-                            and self.robot_status['current_address'] == self.robot_status['operating_order']['address']:
+                    # if self.send_next_orderset_flag: # 실시간 o
+                    if self.send_next_orderset_flag and self.robot_status['operating_order']['id'] == 9999: # 실시간 x
                         massage['orderset'] = self.next_orderset
 
-                        # 로봇이 잘 받았다는 응답을 확인하고 보내는걸 멈추게 하면 좋을 수도 있음.
-                        # self.robot_status['operating_orderset'] 이 self.next_orderset이랑 같으면 send_next_orderset_flag를 False로.
                         self.send_next_orderset_flag_lock.acquire()
                         self.send_next_orderset_flag = False
                         self.send_next_orderset_flag_lock.release()
@@ -453,8 +445,7 @@ class ControlCenter:
                         self.unloading_complete_flag_lock.release()
 
                     sock.send(pickle.dumps(massage, protocol=pickle.HIGHEST_PROTOCOL))
-                    print(massage)
-                time.sleep(0.5)
+                time.sleep(0.2)
 
         def get_robot_status(sock):
             while True:
@@ -508,13 +499,19 @@ class ControlCenter:
         @app.route('/loading-success')
         def change_flags_loading():
             # 이거 접속되는 시점 기록되야됨.
-            self.loading_complete_flag_lock.acquire()
-            self.loading_complete_flag = True
-            self.loading_complete_flag_lock.release()
 
-            self.update_inventory_flag_lock.acquire()
-            self.update_inventory_flag = True
-            self.update_inventory_flag_lock.release()
+            if self.robot_status['operating_orderset']['id'] == self.loading_complete_id:
+                pass
+            else:
+                self.loading_complete_id = self.robot_status['operating_orderset']['id']
+
+                self.loading_complete_flag_lock.acquire()
+                self.loading_complete_flag = True
+                self.loading_complete_flag_lock.release()
+
+                self.update_inventory_flag_lock.acquire()
+                self.update_inventory_flag = True
+                self.update_inventory_flag_lock.release()
 
             return render_template('loading_success.html')
 
@@ -532,19 +529,24 @@ class ControlCenter:
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
 
-            self.unloading_complete_flag_lock.acquire()
-            self.unloading_complete_flag = True
-            self.unloading_complete_flag_lock.release()
+            if self.robot_status['operating_order']['id'] == self.unloading_complete_id:
+                pass
+            else:
+                self.unloading_complete_id = self.robot_status['operating_order']['id']
 
-            self.fulfill_order_flag_lock.acquire()
-            self.fulfill_order_flag = True
-            self.fulfill_order_flag_lock.release()
+                self.unloading_complete_flag_lock.acquire()
+                self.unloading_complete_flag = True
+                self.unloading_complete_flag_lock.release()
+
+                self.fulfill_order_flag_lock.acquire()
+                self.fulfill_order_flag = True
+                self.fulfill_order_flag_lock.release()
 
             return render_template('unloading_success.html', order_id=order_id, address=address)
 
         @app.route('/monitor')
         def monitoring():
-            order_grp = self.order_grp
+
             return 'This is monitor.'
 
         app.run(host='0.0.0.0', port=8080)
@@ -626,6 +628,7 @@ class ControlCenter:
                                  self.next_orderset_idx,
                                  self.next_orderset_idx_lock,
                                  self.operating_order_id,
+                                 self.robot_status,
                                 ))
 
         t_ControlDB.daemon = True
