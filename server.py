@@ -20,7 +20,8 @@ def Schedule(existing_order_grp_profit,
              schedule_changed_flag_lock,
              next_orderset_idx,
              next_orderset_idx_lock,
-             operating_order_id):
+             operating_order_id,
+             robot_status):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
 
@@ -404,9 +405,8 @@ class ControlCenter:
                     }
 
                     # Send next order set to HQ as HQ.operating_orderset
-                    # if self.send_next_orderset_flag \
-                    #         and self.robot_status['current_address'] == self.robot_status['operating_order']['address']:
-                    if self.send_next_orderset_flag:
+                    # if self.send_next_orderset_flag: # 실시간 o
+                    if self.send_next_orderset_flag and self.robot_status['operating_order']['id'] == 9999: # 실시간 x
                         massage['orderset'] = self.next_orderset
 
                         self.send_next_orderset_flag_lock.acquire()
@@ -602,6 +602,7 @@ class ControlCenter:
                                  self.next_orderset_idx,
                                  self.next_orderset_idx_lock,
                                  self.operating_order_id,
+                                 self.robot_status,
                                 ))
 
         t_ControlDB.daemon = True
