@@ -44,59 +44,94 @@ def receive_robot_command(server, client):
 
         if massage['orderset'] is not None and not orderset_block:
             next_orderset = massage['orderset']
-            print(1111, next_orderset)
+            # print(1111, next_orderset)
 
-        if action == 'unloading' and next_orderset is not None and massage['massage'] == 'unloading_complete':
-            # print("?????????????????????????????????????????????????????")
-            operating_orderset = next_orderset
+        if action == 'loading' and (operating_order['id'] == 99999 or operating_order['id'] == 9999):
+            if next_orderset is not None:
+                operating_orderset = next_orderset
 
-            operating_order_idx_lock.acquire()
-            operating_order_idx = 0  # reset idx
-            operating_order_idx_lock.release()
+                operating_order_idx_lock.acquire()
+                operating_order_idx = 0  # reset idx
+                operating_order_idx_lock.release()
 
-            next_orderset = None
-            print(2222, next_orderset)
+                operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
 
+                operating_order_idx_lock.acquire()
+                operating_order_idx += 1
+                operating_order_idx_lock.release()
 
-        if action == 'loading' and next_orderset is not None:
-            operating_orderset = next_orderset
+                next_orderset = None
+                # print(3333, next_orderset)
 
-            operating_order_idx_lock.acquire()
-            operating_order_idx = 0  # reset idx
-            operating_order_idx_lock.release()
+                orderset_block = True
+            else:
+                operating_orderset = {'init': 'init', 'id': 99999999,
+                                      'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 99, 'g': 99, 'b': 99}, 'address': 0}],
+                                      'path': None, 'profit': None, 'item': {'r': 99, 'g': 99, 'b': 99}}
 
-            next_orderset = None
-            print(3333, next_orderset)
+                operating_order_idx_lock.acquire()
+                operating_order_idx = 0  # reset idx
+                operating_order_idx_lock.release()
 
-            orderset_block = True
-
-        if action != 'loading':
+                current_basket = operating_orderset['item']  # update basket
+                operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
+        elif action != 'loading':
             orderset_block = False
-            print(4444, next_orderset)
+            # print(4444, next_orderset)
 
+        if action == 'unloading' and massage['massage'] == 'unloading_complete':
+            if next_orderset is None:
+                # update basket
+                item = operating_order['item']
+                current_basket['r'] -= item['r']
+                current_basket['g'] -= item['g']
+                current_basket['b'] -= item['b']
 
-        # if  operating_order['id'] == 9999 and :
+                operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
+
+                operating_order_idx_lock.acquire()
+                operating_order_idx += 1
+                operating_order_idx_lock.release()
+            else:
+                # print("?????????????????????????????????????????????????????")
+                # update basket
+                item = operating_order['item']
+                current_basket['r'] -= item['r']
+                current_basket['g'] -= item['g']
+                current_basket['b'] -= item['b']
+
+                operating_orderset = next_orderset
+
+                operating_order_idx_lock.acquire()
+                operating_order_idx = 0  # reset idx
+                operating_order_idx_lock.release()
+
+                operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
+
+                operating_order_idx_lock.acquire()
+                operating_order_idx += 1
+                operating_order_idx_lock.release()
+
+                next_orderset = None
+                # print(2222, next_orderset)
 
         if massage['massage'] == 'loading_complete':
             current_basket = operating_orderset['item']  # update basket
-            operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
 
-            operating_order_idx_lock.acquire()
-            operating_order_idx += 1
-            operating_order_idx_lock.release()
 
-        if massage['massage'] == 'unloading_complete':
-            # update basket
-            item = operating_order['item']
-            current_basket['r'] -= item['r']
-            current_basket['g'] -= item['g']
-            current_basket['b'] -= item['b']
+        # if massage['massage'] == 'unloading_complete':
+        #     # update basket
+        #     item = operating_order['item']
+        #     current_basket['r'] -= item['r']
+        #     current_basket['g'] -= item['g']
+        #     current_basket['b'] -= item['b']
+        #
+        #     operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
+        #
+        #     operating_order_idx_lock.acquire()
+        #     operating_order_idx += 1
+        #     operating_order_idx_lock.release()
 
-            operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
-
-            operating_order_idx_lock.acquire()
-            operating_order_idx += 1
-            operating_order_idx_lock.release()
         if operating_orderset is not None:
             if operating_orderset['path'] == None:
                 command['path'] = (0, )
@@ -114,7 +149,7 @@ current_address = 0
 action = 'loading'
 current_basket = {'r': 0, 'g': 0, 'b': 0}
 operating_orderset = {'init': 'init', 'id': 99999999,
-                     'dumporders': [{'id': 9999, 'partial': [], 'orderid': [], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
+                     'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 99, 'g': 99, 'b': 99}, 'address': 0}],
                      'path': None, 'profit': None, 'item': {'r': 99, 'g': 99, 'b': 99}}
 
 operating_order = {'address': 0, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
