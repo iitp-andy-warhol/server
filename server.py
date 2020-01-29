@@ -180,7 +180,7 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'operating_order': {'address': 99999, 'id': 9999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
+            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
              'operating_orderset':{'item': {'r':99,'g':99,'b':99}}})
         self.robot_status_log = []
 
@@ -308,7 +308,8 @@ class ControlCenter:
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
 
-                        if self.next_orderset_idx.value <= self.order_grp_len -1:
+                        print('????????????????????????', self.next_orderset_idx.value,self.order_grp_len - 1)
+                        if self.next_orderset_idx.value <= self.order_grp_len - 1:
 
 
                             self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
@@ -351,7 +352,7 @@ class ControlCenter:
                             self.got_init_orderset = False
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
-                                {'operating_order': {'address': 99999, 'id': 9999, 'item': {'r': 99, 'g': 99, 'b': 99},
+                                {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 99, 'g': 99, 'b': 99},
                                                      'orderid': [999999]}})
 
                             self.just_get_db_flag_lock.acquire()
@@ -413,8 +414,9 @@ class ControlCenter:
                     }
 
                     # Send next order set to HQ as HQ.operating_orderset
-                    if self.send_next_orderset_flag \
-                            and self.robot_status['current_address'] == self.robot_status['operating_order']['address']:
+                    # if self.send_next_orderset_flag \
+                    #         and self.robot_status['current_address'] == self.robot_status['operating_order']['address']:
+                    if self.send_next_orderset_flag:
                         massage['orderset'] = self.next_orderset
 
                         # 로봇이 잘 받았다는 응답을 확인하고 보내는걸 멈추게 하면 좋을 수도 있음.

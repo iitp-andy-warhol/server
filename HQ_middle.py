@@ -44,6 +44,7 @@ def receive_robot_command(server, client):
 
         if massage['orderset'] is not None and not orderset_block:
             next_orderset = massage['orderset']
+            print(1111, next_orderset)
 
         if action == 'unloading' and next_orderset is not None and massage['massage'] == 'unloading_complete':
             # print("?????????????????????????????????????????????????????")
@@ -54,6 +55,8 @@ def receive_robot_command(server, client):
             operating_order_idx_lock.release()
 
             next_orderset = None
+            print(2222, next_orderset)
+
 
         if action == 'loading' and next_orderset is not None:
             operating_orderset = next_orderset
@@ -63,11 +66,14 @@ def receive_robot_command(server, client):
             operating_order_idx_lock.release()
 
             next_orderset = None
+            print(3333, next_orderset)
 
             orderset_block = True
 
         if action != 'loading':
             orderset_block = False
+            print(4444, next_orderset)
+
 
         # if  operating_order['id'] == 9999 and :
 
@@ -111,7 +117,7 @@ operating_orderset = {'init': 'init', 'id': 99999999,
                      'dumporders': [{'id': 9999, 'partial': [], 'orderid': [], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
                      'path': None, 'profit': None, 'item': {'r': 99, 'g': 99, 'b': 99}}
 
-operating_order = {'address': 0, 'id': 9999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
+operating_order = {'address': 0, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
 next_orderset = None
 
 operating_order_idx = 0
