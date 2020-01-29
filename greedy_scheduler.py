@@ -1,3 +1,4 @@
+from collections import defaultdict
 import functools
 import time
 
@@ -22,25 +23,17 @@ def get_pending():
     cursor = cnx.cursor()
     cursor.execute(f"USE {dbname};")
 
-    pending_df_colname = ['id', 'red', 'blue', 'green', 'orderdate', 'address']
+    pending_df_colname = ['id', 'red', 'green', 'blue', 'orderdate', 'address']
     query = f"SELECT {', '.join(pending_df_colname)} " + "FROM orders WHERE pending = 1"
     cursor.execute(query)
     pending = cursor.fetchall()
     pdf = pd.DataFrame(pending, columns=pending_df_colname)
-    pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
-    # pdf = filter_orders(pdf)
-    return pdf
-
-def filter_orders(pdf, max=20):
-    if max == None:
-        return pdf
-    pdf = pdf[pdf['item'] <= max]
     return pdf
 
 def evaluate_order(curr_location, order):
     driving_cost = compute_driving_cost(curr_location, order)
     unloading_cost = compute_unloading_cost(order)
-    order['value'] = order['value'] / (unloading_cost + driving_cost)
+    order['profit'] = order['profit'] / (unloading_cost + driving_cost)
     return order
 
 def compute_driving_cost(curr_location, order):
@@ -49,25 +42,13 @@ def compute_driving_cost(curr_location, order):
     return driving_cost
 
 def compute_unloading_cost(order):
-    num_items = order['item']
+    num_items = count_items(order)
     if num_items == 0:
         unloading_cost = np.inf
     else:
         unloading_cost = num_items
     return unloading_cost
 
-def sort_orders(orders):
-    # 일단은 greedy 하게 value 가 큰 순서대로 정렬
-    orders = sorted(orders, key=lambda x: -x['value'])
-    return orders
-
-def count_items(orders):
-    # Counts the number of items in a single order 
-    # or the total number of items in a list of orders
-    if type(orders) == dict:
-        return orders['item']        
-    else:
-        return sum([order['item'] for order in orders])
 
 def group_orders_once(orders, item_limit):
     # Split a sequence of orders to two parts.
@@ -91,66 +72,100 @@ def group_orders_n(orders, item_limit):
     return scheduled_orders
 
 def evaluate_order_set(order_set):
-    values = np.array([order['value'] for order in order_set])
+    # TODO: Consider unique number of addresses.
+    # Temporary method of evaluation w/ discount factor
+    profits = np.array([order['profit'] for order in order_set])
     discount = np.power(DISCOUNT_ORDER, np.arange(len(order_set)))
-    return np.dot(values, discount)
+    return np.dot(profits, discount)
+
+def sort_orders(orders, by, ascending=False):
+    # 일단은 greedy 하게 profit 이 큰 순서대로 정렬
+    orders = sorted(orders, key=lambda x: x[by])
+    if not ascending:
+        return orders[::-1]
+    return orders
+
+def sort_order_sets(order_group):
+    ordersets = sorted(order_group, key=lambda x: -evaluate_order_set(x))
+    return ordersets
 
 def diff(order, new_order):
-    order['red'] -= new_order['red']
-    order['green'] -= new_order['green']
-    order['blue'] -= new_order['blue']
-    order['item'] -= new_order['item']
+    order['item']['r'] -= new_order['item']['r']
+    order['item']['g'] -= new_order['item']['g']
+    order['item']['b'] -= new_order['item']['b']
     return order
 
-def split_order_once(order, item_limit):
-    num_partial = np.ceil(order['item'] / item_limit)
+def partialize_once(order, item_limit):
+    num_partial = np.ceil(count_items(order) / item_limit) # number of subsequences to meet item_limit
     new_order = order.copy()
-    new_order['red'] = int(order['red'] // num_partial)
-    new_order['green'] = int(order['green'] // num_partial)
-    new_order['blue'] = int(order['blue'] // num_partial)
-    new_order['item'] = new_order['red'] + new_order['blue'] + new_order['green']
+    new_order['item']['r'] = int(order['item']['r'] // num_partial)
+    new_order['item']['g'] = int(order['item']['g'] // num_partial)
+    new_order['item']['b'] = int(order['item']['b'] // num_partial)
     remaining_order = diff(order.copy(), new_order)
-    return (new_order, remaining_order)
+    return new_order, remaining_order
 
-def split_order_n(order, item_limit):
+def partialize_n(order, item_limit):
     partial_orders = [order]
     while count_items(partial_orders[-1]) > item_limit:
-        split_order = split_order_once(partial_orders[-1], item_limit)
+        split_order = partialize_once(partial_orders[-1], item_limit)
         partial_orders.pop()
         partial_orders += split_order
-    assert order['item'] == count_items(partial_orders)
+    assert count_items(order) == count_items(partial_orders)
     partial_orders = add_partial_info(partial_orders)
     return partial_orders
 
 def add_partial_info(partial_orders):
     for i, partial_order in enumerate(partial_orders, 1):
         partial_order['partialid'] = i
-        partial_order['value'] /= len(partial_orders)
+        partial_order['profit'] /= len(partial_orders)
     return partial_orders
+
+def partialize(orders, item_limit):
+    no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
+    need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
+
+    splitted_orders = [partialize_n(order, PARTIAL_THRESHOLD) for order in need_split]
+    splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
+    all_partials = no_split + splitted_orders
+    return all_partials
+
+def group_same_address(partial_orders):
+    partial_by_address = defaultdict(list)
+    for order in partial_orders:
+        partial_by_address[order['address']].append(order)
+    return dict(partial_by_address)
+
+
 
 if __name__ == "__main__":
     pending_df = get_pending()
     pending_df['partialid'] = 0
-    pending_df['value'] = 1
-    pending_orders = [dict(row) for idx, row in pending_df.iterrows()]   
+    pending_df['profit'] = 1
+    pending_orders = [dict(row) for idx, row in pending_df.iterrows()]
 
     # Convert to partial orders
     no_split = list(filter(lambda x: x['item'] <= PARTIAL_THRESHOLD, pending_orders))
 
     need_split = list(filter(lambda x: x['item'] > PARTIAL_THRESHOLD, pending_orders))
-    splitted_orders = [split_order_n(order, PARTIAL_THRESHOLD) for order in need_split]
+    splitted_orders = [partialize_n(order, PARTIAL_THRESHOLD) for order in need_split]
     splitted_orders = functools.reduce(lambda x, y: x+y, splitted_orders)
 
-    # Update order values
+    # Update order profits
     curr_location = 0
-    pending_orders = no_split + splitted_orders
-    pending_orders = [evaluate_order(curr_location, order) for order in pending_orders]
+    pending_partial_orders = no_split + splitted_orders
+    pending_partial_orders = [evaluate_order(curr_location, order) for order in pending_partial_orders]
 
-    # Sort by value
-    orders_sorted = sort_orders(pending_orders)
+    # Sort orders by profit
+    orders_sorted = sort_orders(pending_partial_orders)
 
     # Group orders to order sets
     order_group = group_orders_n(orders_sorted, BASKET_SIZE)
 
-    for order_set in order_group:
-        print(f"Number of orders in order set: {len(order_set)} | Number of items: {count_items(order_set)} | Value: {evaluate_order_set(order_set):.3f}")
+    # Sort order sets by profit
+    order_group_sorted = sort_order_sets(order_group)
+
+    # print(len(pending_orders))
+    # print(len(pending_partial_orders))
+
+    for order_set in order_group_sorted:
+        print(f"Number of orders in order set: {len(order_set)} | Number of items: {count_items(order_set)} | Profit: {evaluate_order_set(order_set):.3f}")

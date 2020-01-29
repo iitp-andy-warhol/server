@@ -1,11 +1,18 @@
+import functools
 import multiprocessing as mp
-import threading as th
-import mysql.connector
-import pandas as pd
-import time
-import orderdic as od
-from socket import *
 import pickle
+import threading as th
+import time
+from socket import *
+
+import numpy as np
+import pandas as pd
+
+import mysql.connector
+import orderdic as od
+from utils import *
+from greedy_scheduler import *
+from orderdic import makeOrder, makeDumpedOrder
 
 
 def Schedule(existing_order_grp_profit,
@@ -20,45 +27,51 @@ def Schedule(existing_order_grp_profit,
              schedule_changed_flag_lock,
              next_orderset_idx,
              next_orderset_idx_lock,
-             operating_order_id):
+             operating_order_id,
+             robot_status):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
 
     def get_optimized_order_grp(existing_order_grp_profit, pdf, threshold=0):
-        def split_partial(order, n=1):
-            """일단 속성으로 아웃풋 형식만 맞춰서 만듬. rgb 쪼개는거 해야됨."""
-            partialIDs = list(range(n))
-            partial_list_per_order = []
-            for parID in partialIDs:
-                r = order['item']['r']
-                g = order['item']['g']
-                b = order['item']['b']
-                partial_list_per_order.append(od.makePartialOrder(order, str(order['id'])+'-'+str(parID), r,g,b))
-            return partial_list_per_order
+        pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
+        pdf = pdf[pdf['item'] > 0]
+        pdf['partialid'] = 0
+        pdf['profit'] = 1
+        pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
-        # 일단은 각 출발에 주문 1개씩 선입선출로 해놨음.
-        sorted_df = pdf.sort_values(by='orderdate')
-        """
-        OrderSet.path 에는 해당 오더셋을 수행하는 최적 경로를 넣어놓아야함
-        """
-        all_partials = []
-        for i in range(len(sorted_df)):
-            order = od.makeOrder(sorted_df.iloc[i:i + 1])
-            partials = split_partial(order, n=1)
-            for po in partials:
-                all_partials.append(po)
+        # Convert to partial orders
+        all_partials = partialize(pending_orders, item_limit=PARTIAL_THRESHOLD)
 
+        # Update order profit
+        all_partials = [evaluate_order(robot_status['current_address'], order) for order in all_partials]
+
+        # Sort orders by profit
+        partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
+
+        # Group partial orders
+        # List of orders sets (also a list)
+        grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
+
+        # Make dump orders
         all_dumps = []
-        for dumID, po in enumerate(all_partials):
-            do = od.makeDumpedOrder(dumID, [po])
-            all_dumps.append(do)
+        for po_group in grouped_partial_orders:
+            group_by_address = group_same_address(po_group).values()
+            for dumped_order in group_by_address:
+                dumID = len(all_dumps)
+                all_dumps.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
 
+        grouped_dumped_orders = group_orders_n(all_dumps, BASKET_SIZE)
+
+        # Make order sets
         all_ordersets = []
-        for osID, do in enumerate(all_dumps):
-            path = (f"{do['address']}")
-            os = od.makeOrderSet(osID, [do], path=path, profit = 1)
+        for osID, do_group in enumerate(grouped_dumped_orders):
+            # TODO : make path for multiple addresses
+            # TODO : use robot status information to make path
+            # TODO : improve algorithm estimating profit
+            os = od.makeOrderSet(robot_status, osID, do_group, profit=1)
             all_ordersets.append(os)
 
+        # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)
 
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', new_order_grp['profit'])
