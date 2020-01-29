@@ -6,7 +6,6 @@ import time
 import orderdic as od
 from socket import *
 import pickle
-import os
 
 
 def Schedule(existing_order_grp_profit,
@@ -20,7 +19,9 @@ def Schedule(existing_order_grp_profit,
              schedule_changed_flag,
              schedule_changed_flag_lock,
              next_orderset_idx,
-             next_orderset_idx_lock):
+             next_orderset_idx_lock,
+             operating_order_id):
+
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
 
     def get_optimized_order_grp(existing_order_grp_profit, pdf, threshold=0):
@@ -72,7 +73,13 @@ def Schedule(existing_order_grp_profit,
             print('@@@@@@@@@@@ Making new schedule @@@@@@@@@@@')
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!스케줄함수내부',existing_order_grp_profit.value)
 
-            new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pending_df.df)
+            pdf_for_scheduling = pending_df.df.copy()
+
+            print('오퍼레이팅 오더아이디????????????????', operating_order_id.l)
+            pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+
+            print('걸러진pdf', pdf_for_scheduling)
+            new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling)
             if new_order_grp is not None:
                 order_grp_new_lock.acquire()
                 order_grp_new['dict'] = new_order_grp
@@ -136,10 +143,14 @@ class ControlCenter:
         self.order_grp_new = mp.Manager().dict({'dict': None, 'ordersets': []})
         self.order_grp_new_lock = mp.Lock()
 
+        self.operating_order_id = mp.Manager().Namespace()
+        self.operating_order_id.l = []
+        self.operating_order_id_lock = mp.Lock()
+
         self.update_order_grp_flag = mp.Manager().Value('flag', False)
         self.update_order_grp_flag_lock = mp.Lock()
 
-        self.next_orderset = {'init': 'init', 'item': {'r':99,'g':99,'b':99}}
+        self.next_orderset = {'init': 'init', 'item': {'r':99,'g':99,'b':99}, 'id':99999999}
         self.next_orderset_lock = mp.Lock()
 
         self.send_next_orderset_flag = False
@@ -169,7 +180,7 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}}, 'orderid':999999})
+            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}})
         self.robot_status_log = []
 
     def ControlDB(self):
@@ -267,6 +278,10 @@ class ControlCenter:
         largePrint('Manager() is on')
         did_dummy = False
         while True:
+            self.operating_order_id_lock.acquire()
+            self.operating_order_id.l = self.robot_status['operating_order']['orderid']
+            self.operating_order_id_lock.release()
+
             if self.update_order_grp_flag.value:
                 largePrint('Schedule is updated!!')
                 self.order_grp_lock.acquire()
@@ -282,7 +297,7 @@ class ControlCenter:
                 self.update_order_grp_flag_lock.acquire()
                 self.update_order_grp_flag.value = False
                 self.update_order_grp_flag_lock.release()
-# causal learning
+# causal learning?
             # Get next orderset from order group
             if self.got_init_robot_status:
                 if not self.got_init_orderset:
@@ -323,7 +338,7 @@ class ControlCenter:
                             self.send_next_orderset_flag = True
                             self.send_next_orderset_flag_lock.release()
                         else:
-
+                            # 오더그룹 다 비웠을 때 초기상태로 돌아오기
                             self.next_orderset_idx_lock.acquire()
                             self.next_orderset_idx.value = -1
                             self.next_orderset_idx_lock.release()
@@ -334,6 +349,9 @@ class ControlCenter:
 
                             self.got_init_orderset = False
                             self.existing_order_grp_profit.value = 0
+                            self.robot_status = mp.Manager().dict(
+                                {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 99, 'g': 99, 'b': 99},
+                                                     'orderid': [999999]}})
 
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
@@ -421,6 +439,7 @@ class ControlCenter:
                         self.unloading_complete_flag_lock.release()
 
                     sock.send(pickle.dumps(massage, protocol=pickle.HIGHEST_PROTOCOL))
+                    print(massage)
                 time.sleep(0.5)
 
         def get_robot_status(sock):
@@ -518,7 +537,7 @@ class ControlCenter:
     def Print_info(self):
         while True:
             robot_status_print = {}
-            if self.robot_status['operating_order']['address'] == 99999:
+            if not self.got_init_robot_status:
                 robot_status_print = {
                     'direction': None,
                     'current_address': None,
@@ -527,6 +546,7 @@ class ControlCenter:
                     'current_basket': None,
                     'operating_orderset': None,
                     'operating_order': None,
+                    'next_orderset': None,
                     'log_time': None
                 }
             else:
@@ -560,6 +580,8 @@ class ControlCenter:
                       f"| current_basket: {robot_status_print['current_basket']}",
                       f"| operating_orderset: {robot_status_print['operating_orderset']}",
                       f"| operating_order: {robot_status_print['operating_order']}",
+                      f"| operating_order_id: {self.operating_order_id.l}",
+                      f"| next_orderset: {robot_status_print['next_orderset']}",
                       f'===========================================',
 
                       '\n',
@@ -588,6 +610,7 @@ class ControlCenter:
                                  self.schedule_changed_flag_lock,
                                  self.next_orderset_idx,
                                  self.next_orderset_idx_lock,
+                                 self.operating_order_id,
                                 ))
 
         t_ControlDB.daemon = True
@@ -603,6 +626,9 @@ class ControlCenter:
         t_PrintLog.start()
         p_Schedule.start()
 
+
+        while True:
+            time.sleep(1)
         input()
         p_Schedule.terminate()
 

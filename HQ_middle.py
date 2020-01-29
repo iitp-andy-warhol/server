@@ -3,25 +3,11 @@ import pickle
 import threading as th
 import time
 import numpy as np
-
-
-def makeRobotStatus(direction, current_address, action, current_basket, operating_orderset, operating_order):
-    l = [6, 0, 1, 2, 3, 4, 5, 6, 0]
-    dic = {
-        'direction': direction,
-        'current_address': current_address,
-        # 'next_address' : l[current_address+1+direction],
-        'action': action,
-        'current_basket': current_basket,
-        'operating_orderset': operating_orderset,
-        'operating_order': operating_order,
-        'log_time': time.strftime('%c', time.localtime(time.time()))
-    }
-    return dic
+import robotstatus as rs
 
 
 def send_robot_status(server, client):
-    global direction, current_address, action, current_basket, operating_orderset, operating_order
+    global direction, current_address, action, current_basket, operating_orderset, operating_order, next_orderset
     current_raw_status = None
     while True:
         recvData = client.recv(8192)
@@ -34,8 +20,8 @@ def send_robot_status(server, client):
         current_address = raw_status['current_address']
         action = raw_status['action']
 
-        robot_status = makeRobotStatus(direction, current_address, action, current_basket, operating_orderset,
-                                       operating_order)
+        robot_status = rs.makeRobotStatus(direction, current_address, action, current_basket, operating_orderset,
+                                       operating_order, next_orderset)
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
         server.send(sendData)
@@ -45,7 +31,7 @@ def send_robot_status(server, client):
 def receive_robot_command(server, client):
     global command, massage, operating_orderset, operating_order, operating_order_idx, operating_order_idx_lock, next_orderset
     global need_after_loading_job_flag, need_after_loading_job_flag_lock, need_after_unloading_job_flag, need_after_unloading_job_flag_lock
-    global current_basket, action
+    global current_basket, action, next_orderset
     current_massage = None
     while True:
         recvData = server.recv(8192)
@@ -59,6 +45,7 @@ def receive_robot_command(server, client):
             next_orderset = massage['orderset']
 
         if next_orderset is not None and massage['massage'] is not None:
+            print("?????????????????????????????????????????????????????")
             operating_orderset = next_orderset
 
             operating_order_idx_lock.acquire()
@@ -103,8 +90,8 @@ direction = 1
 current_address = 0
 action = 'loading'
 current_basket = {'r': 0, 'g': 0, 'b': 0}
-operating_orderset = None
-operating_order = {'address': 0, 'id': 99999}
+operating_orderset = {'init': 'init', 'item': {'r':99,'g':99,'b':99}, 'path':None, 'id':99999999}
+operating_order = {'address': 0, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
 next_orderset = None
 
 operating_order_idx = 0
