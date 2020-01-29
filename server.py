@@ -180,7 +180,8 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}})
+            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
+             'operating_orderset':{'item': {'r':99,'g':99,'b':99}}})
         self.robot_status_log = []
 
     def ControlDB(self):
@@ -486,7 +487,8 @@ class ControlCenter:
             # 지금은 next_orderset이 변경된 경우 로딩UI에는 실제로 로딩을 할것도 아닌데 새 next_orderset의 아이템이 보여진다.
             # 실제로 로딩해야할 넥스트오더셋의 아이템이 매니저에서 갱신된 경우 소리등의 방식으로 알림을 줘서 워커가 제대로 된
             # 로딩 아이템을 볼 수 있게 해줘야 함.
-            items = self.next_orderset['item']
+
+            items = self.robot_status['operating_orderset']['item']
 
             return render_template('loading.html', items=items)
 
