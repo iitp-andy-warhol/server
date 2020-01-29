@@ -123,9 +123,11 @@ def add_partial_info(partial_orders):
 def partialize(orders, item_limit):
     no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
     need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
-
-    splitted_orders = [partialize_n(order, PARTIAL_THRESHOLD) for order in need_split]
-    splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
+    if len(need_split):
+        splitted_orders = [partialize_n(order, PARTIAL_THRESHOLD) for order in need_split]
+        splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
+    else:
+        splitted_orders = []
     all_partials = no_split + splitted_orders
     return all_partials
 
