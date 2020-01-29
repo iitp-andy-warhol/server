@@ -33,6 +33,7 @@ def receive_robot_command(server, client):
     global need_after_loading_job_flag, need_after_loading_job_flag_lock, need_after_unloading_job_flag, need_after_unloading_job_flag_lock
     global current_basket, action, next_orderset
     current_massage = None
+    orderset_block = False
     while True:
         recvData = server.recv(8192)
         massage = pickle.loads(recvData)
@@ -41,11 +42,11 @@ def receive_robot_command(server, client):
             # print("Message: ", massage, time.strftime('%c', time.localtime(time.time())))
             current_massage = np.copy(massage)
 
-        if massage['orderset'] is not None:
+        if massage['orderset'] is not None and not orderset_block:
             next_orderset = massage['orderset']
 
-        if next_orderset is not None and massage['massage'] is not None:
-            print("?????????????????????????????????????????????????????")
+        if action == 'unloading' and next_orderset is not None and massage['massage'] == 'unloading_complete':
+            # print("?????????????????????????????????????????????????????")
             operating_orderset = next_orderset
 
             operating_order_idx_lock.acquire()
@@ -53,6 +54,22 @@ def receive_robot_command(server, client):
             operating_order_idx_lock.release()
 
             next_orderset = None
+
+        if action == 'loading' and next_orderset is not None:
+            operating_orderset = next_orderset
+
+            operating_order_idx_lock.acquire()
+            operating_order_idx = 0  # reset idx
+            operating_order_idx_lock.release()
+
+            next_orderset = None
+
+            orderset_block = True
+
+        if action != 'loading':
+            orderset_block = False
+
+        # if  operating_order['id'] == 9999 and :
 
         if massage['massage'] == 'loading_complete':
             current_basket = operating_orderset['item']  # update basket
@@ -90,8 +107,11 @@ direction = 1
 current_address = 0
 action = 'loading'
 current_basket = {'r': 0, 'g': 0, 'b': 0}
-operating_orderset = {'init': 'init', 'item': {'r':99,'g':99,'b':99}, 'path':None, 'id':99999999}
-operating_order = {'address': 0, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
+operating_orderset = {'init': 'init', 'id': 99999999,
+                     'dumporders': [{'id': 9999, 'partial': [], 'orderid': [], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
+                     'path': None, 'profit': None, 'item': {'r': 99, 'g': 99, 'b': 99}}
+
+operating_order = {'address': 0, 'id': 9999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
 next_orderset = None
 
 operating_order_idx = 0
