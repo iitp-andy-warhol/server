@@ -179,6 +179,9 @@ class ControlCenter:
              'operating_orderset':{'item': {'r':99,'g':99,'b':99}}})
         self.robot_status_log = []
 
+        self.loading_complete_id = 88888
+        self.unloading_complete_id = 88888
+
     def ControlDB(self):
         largePrint('ControlDB is operated')
         host = 'localhost'
@@ -484,13 +487,19 @@ class ControlCenter:
         @app.route('/loading-success')
         def change_flags_loading():
             # 이거 접속되는 시점 기록되야됨.
-            self.loading_complete_flag_lock.acquire()
-            self.loading_complete_flag = True
-            self.loading_complete_flag_lock.release()
 
-            self.update_inventory_flag_lock.acquire()
-            self.update_inventory_flag = True
-            self.update_inventory_flag_lock.release()
+            if self.robot_status['operating_orderset']['id'] == self.loading_complete_id:
+                pass
+            else:
+                self.loading_complete_id = self.robot_status['operating_orderset']['id']
+
+                self.loading_complete_flag_lock.acquire()
+                self.loading_complete_flag = True
+                self.loading_complete_flag_lock.release()
+
+                self.update_inventory_flag_lock.acquire()
+                self.update_inventory_flag = True
+                self.update_inventory_flag_lock.release()
 
             return render_template('loading_success.html')
 
@@ -508,19 +517,24 @@ class ControlCenter:
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
 
-            self.unloading_complete_flag_lock.acquire()
-            self.unloading_complete_flag = True
-            self.unloading_complete_flag_lock.release()
+            if self.robot_status['operating_order']['id'] == self.unloading_complete_id:
+                pass
+            else:
+                self.unloading_complete_id = self.robot_status['operating_order']['id']
 
-            self.fulfill_order_flag_lock.acquire()
-            self.fulfill_order_flag = True
-            self.fulfill_order_flag_lock.release()
+                self.unloading_complete_flag_lock.acquire()
+                self.unloading_complete_flag = True
+                self.unloading_complete_flag_lock.release()
+
+                self.fulfill_order_flag_lock.acquire()
+                self.fulfill_order_flag = True
+                self.fulfill_order_flag_lock.release()
 
             return render_template('unloading_success.html', order_id=order_id, address=address)
 
         @app.route('/monitor')
         def monitoring():
-            order_grp = self.order_grp
+
             return 'This is monitor.'
 
         app.run(host='0.0.0.0', port=8080)
