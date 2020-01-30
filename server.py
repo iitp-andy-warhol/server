@@ -12,7 +12,6 @@ import mysql.connector
 import orderdic as od
 from utils import *
 from greedy_scheduler import *
-from orderdic import makeOrder, makeDumpedOrder
 
 
 def Schedule(existing_order_grp_profit,
@@ -33,6 +32,8 @@ def Schedule(existing_order_grp_profit,
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
 
     def get_optimized_order_grp(existing_order_grp_profit, pdf, threshold=0):
+        if len(pdf) == 0:
+            return None
         pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
         pdf = pdf[pdf['item'] > 0]
         pdf['partialid'] = 0
