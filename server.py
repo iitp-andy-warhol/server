@@ -44,7 +44,7 @@ def Schedule(existing_order_grp_profit,
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        to_loading_zone = rs['operating_order']['id'] == 0
+        to_loading_zone = rs['operating_order']['id'] == 9999
         current_basket = rs['current_basket']
 
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
