@@ -65,7 +65,7 @@ def make_path(direction, current_address, order_address):
     path = front + rotate + behind
     returning_path = make_shorter_path(path[-1], 0, direction)
     path = path[:-1] + returning_path
-    return stringify_path(path)
+    return path
 
 def stringify_path(address_seq):
     path_string = ''.join(list(map(str, address_seq)))

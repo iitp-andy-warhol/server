@@ -1,4 +1,5 @@
 from utils import *
+from collections import defaultdict
 
 def makeOrder(order):
     """
@@ -87,12 +88,16 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
         path = make_path(direction=robot_status['direction'],
                          current_address=robot_status['current_address'],
                          order_address=address_set)
+        do_dict = {dumped_order['address']: dumped_order for dumped_order in lst}
+        lst = [do_dict[address] for address in path if address in set(range(1,7))]
+        path_string = stringify_path(path)
+        # TODO : sync
     dummy = makeDumpedOrder(dummy=True)
     lst.append(dummy)
     dic = {
         'id': ordersetid,
         'dumporders': lst,
-        'path': path,
+        'path': path_string,
         'profit': profit,
         'item': {'r': r, 'g': g, 'b': b}
     }
