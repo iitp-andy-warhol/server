@@ -161,7 +161,6 @@ def fit_basket(order, current_basket):
     return all(red, green, blue)
 
 def partialize_for_loading(orders, item_limit):
-    # to_loading_zone = robot_status['operating_order'] == 0
     splitted_orders = [[]]
     no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
     need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
