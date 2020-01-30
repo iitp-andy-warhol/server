@@ -32,6 +32,7 @@ def Schedule(existing_order_grp_profit,
              current_basket):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
+    osID = 0
 
     def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
         if len(pdf) == 0:
@@ -43,17 +44,31 @@ def Schedule(existing_order_grp_profit,
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        all_partials = partialize(pending_orders, item_limit=PARTIAL_THRESHOLD)
+        to_loading_zone = rs['operating_order'] == 0
+        current_basket = rs['current_basket']
 
+        all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
         # Update order profit
         all_partials = [evaluate_order(rs['current_address'], order) for order in all_partials]
 
-        # Sort orders by profit
-        partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
 
-        # Group partial orders
-        # List of orders sets (also a list)
-        grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
+        if not to_loading_zone:
+            in_basket, not_in_basket = list(zip(*[partialize_for_basket(order, current_basket=current_basket) for order in all_partials]))
+            in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
+            this_os, remaining_orders = group_orders_for_basket(in_basket, current_basket)
+            remaining_orders += not_in_basket
+
+            # Sort remaining orders by profit
+            remaining_orders = sort_orders(remaining_orders, by='profit', ascending=False)
+
+            # Group partial orders
+            grouped_partial_orders = group_orders_n(remaining_orders, BASKET_SIZE)
+            # grouped_partial_orders.insert(0, this_os)
+
+        else:
+            # Sort orders by profit
+            partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
+            grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
 
         # Make dump orders
         all_dumps = []
@@ -65,13 +80,23 @@ def Schedule(existing_order_grp_profit,
 
         grouped_dumped_orders = group_orders_n(all_dumps, BASKET_SIZE)
 
+        if not to_loading_zone:
+            this_dump = []
+            group_by_address = group_same_address(this_os).values()
+            for dumped_order in group_by_address:
+                this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
+                dumID = len(all_dumps) + len(this_dump)
+            grouped_dumped_orders.insert(0, this_dump)
+
         # Make order sets
         all_ordersets = []
-        for osID, do_group in enumerate(grouped_dumped_orders):
+        nonlocal osID
+        for do_group in grouped_dumped_orders:
             # TODO : use robot status information to make path
             # TODO : improve algorithm estimating profit
             os = od.makeOrderSet(rs, osID, do_group, profit=1)
             all_ordersets.append(os)
+            osID += 1
 
         # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)

@@ -160,29 +160,13 @@ def fit_basket(order, current_basket):
     blue = count_color(order, 'b') <= current_basket['b']
     return all(red, green, blue)
 
-def partialize(orders, item_limit, robot_status):
-    to_loading_zone = robot_status['operating_order'] == 0
+def partialize_for_loading(orders, item_limit):
+    # to_loading_zone = robot_status['operating_order'] == 0
     splitted_orders = [[]]
-    if to_loading_zone:
-        no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
-        need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
-        splitted_orders += [partialize_n(order, PARTIAL_THRESHOLD) for order in need_split]
-        splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
-    else:
-        current_basket = robot_status['current_basket']
-        no_split = list(filter(lambda x: fit_basket(x, current_basket), orders))
-
-        need_split = list(filter(lambda x: not fit_basket(x, current_basket), orders))
-        splitted_orders += [partialize_for_basket(order, current_basket) for order in need_split]
-        splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
-
-        all_orders = no_split + splitted_orders
-        current_possible = list(filter(lambda x: fit_basket(x, current_basket), all_orders))
-
-        current_possible = sort_orders(current_possible) # optional
-        first_os, remaining_orders = group_orders_for_basket(current_possible, current_basket)
-
-
+    no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
+    need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
+    splitted_orders += [partialize_n(order, PARTIAL_THRESHOLD) for order in need_split]
+    splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
 
     all_partials = no_split + splitted_orders
 
@@ -190,6 +174,18 @@ def partialize(orders, item_limit, robot_status):
     all_partials = add_partial_id(all_partials)
     return all_partials
 
+def partialize_for_basket(orders, current_basket):
+    splitted_orders =[[]]
+    no_split = list(filter(lambda x: fit_basket(x, current_basket), orders))
+
+    need_split = list(filter(lambda x: not fit_basket(x, current_basket), orders))
+    splitted_orders += [partialize_for_basket(order, current_basket) for order in need_split]
+    splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
+
+    all_orders = no_split + splitted_orders
+    in_basket = list(filter(lambda x: fit_basket(x, current_basket), all_orders))
+    not_in_basket = list(filter(lambda x: not fit_basket(x, current_basket), all_orders))
+    return in_basket, not_in_basket
 
 
 def group_same_address(partial_orders):
@@ -197,8 +193,6 @@ def group_same_address(partial_orders):
     for order in partial_orders:
         partial_by_address[order['address']].append(order)
     return dict(partial_by_address)
-
-
 
 if __name__ == "__main__":
     pending_df = get_pending()
