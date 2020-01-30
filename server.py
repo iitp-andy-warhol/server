@@ -259,7 +259,7 @@ class ControlCenter:
                 cursor.execute(f"USE {dbname};")
 
                 for po in self.robot_status['operating_order']['partial']:
-                    orderID = po['orderid']
+                    orderID = po['id']
                     item = po['item']
                     r = item['r']
                     g = item['g']

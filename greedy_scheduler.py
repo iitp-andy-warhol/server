@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 import functools
 import time
@@ -97,11 +98,11 @@ def diff(order, new_order):
 
 def partialize_once(order, item_limit):
     num_partial = np.ceil(count_items(order) / item_limit) # number of subsequences to meet item_limit
-    new_order = order.copy()
+    new_order = copy.deepcopy(order)
     new_order['item']['r'] = int(order['item']['r'] // num_partial)
     new_order['item']['g'] = int(order['item']['g'] // num_partial)
     new_order['item']['b'] = int(order['item']['b'] // num_partial)
-    remaining_order = diff(order.copy(), new_order)
+    remaining_order = diff(copy.deepcopy(order), new_order)
     return new_order, remaining_order
 
 def partialize_n(order, item_limit):
@@ -120,7 +121,8 @@ def add_partial_info(partial_orders):
         partial_order['profit'] /= len(partial_orders)
     return partial_orders
 
-def partialize(orders, item_limit):
+def partialize(orders, item_limit, current_basket=None):
+    # Loading zone / unloading zone 여부를 알 수 있어야
     no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
     need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
     if len(need_split):
