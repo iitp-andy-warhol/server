@@ -451,7 +451,7 @@ while True:
     else:  # action == 'unloading' or receive_command_flag: and action != "M-mode":
         # receive_command_flag = False
         path_id = command['path_id']
-        if path_id != current_path_id and command['path'] is not None:
+        if command['path'] is not None:
             path = command['path']
             current_path_id = np.copy(path_id)
 

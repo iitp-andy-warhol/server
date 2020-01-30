@@ -27,11 +27,13 @@ def Schedule(existing_order_grp_profit,
              next_orderset_idx,
              next_orderset_idx_lock,
              operating_order_id,
-             robot_status):
+             direction,
+             current_address,
+             current_basket):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
 
-    def get_optimized_order_grp(existing_order_grp_profit, pdf, threshold=0):
+    def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
         if len(pdf) == 0:
             return None
         pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
@@ -44,7 +46,7 @@ def Schedule(existing_order_grp_profit,
         all_partials = partialize(pending_orders, item_limit=PARTIAL_THRESHOLD)
 
         # Update order profit
-        all_partials = [evaluate_order(robot_status['current_address'], order) for order in all_partials]
+        all_partials = [evaluate_order(rs['current_address'], order) for order in all_partials]
 
         # Sort orders by profit
         partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
@@ -68,7 +70,7 @@ def Schedule(existing_order_grp_profit,
         for osID, do_group in enumerate(grouped_dumped_orders):
             # TODO : use robot status information to make path
             # TODO : improve algorithm estimating profit
-            os = od.makeOrderSet(robot_status, osID, do_group, profit=1)
+            os = od.makeOrderSet(rs, osID, do_group, profit=1)
             all_ordersets.append(os)
 
         # Make order group
@@ -82,11 +84,15 @@ def Schedule(existing_order_grp_profit,
     while True:
         if scheduling_required_flag.value:
             print('@@@@@@@@@@@ Making new schedule @@@@@@@@@@@')
-
+            schedule_info = {
+                'direction': direction.value,
+                'current_address': current_address.value,
+                'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]}
+            }
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
 
-            new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling)
+            new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
             if new_order_grp is not None:
                 order_grp_new_lock.acquire()
                 order_grp_new['dict'] = new_order_grp
@@ -187,9 +193,14 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
-             'operating_orderset':{'item': {'r':99,'g':99,'b':99}}})
+            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
+             'operating_orderset':{'item': {'r':99,'g':99,'b':99}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0}})
+
         self.robot_status_log = []
+
+        self.schedule_direction = mp.Value('i', 1)
+        self.schedule_current_address = mp.Value('i',0)
+        self.schedule_current_basket = mp.Array('i', [0,0,0])
 
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
@@ -248,7 +259,13 @@ class ControlCenter:
                                 dbup_time = time.time()
 
                                 self.scheduling_required_flag_lock.acquire()
+                                self.schedule_direction.value =  self.robot_status['direction']
+                                self.schedule_current_address.value = self.robot_status['current_address']
+                                basket = self.robot_status['current_basket']
+                                self.schedule_current_basket = mp.Array('i', [basket['r'],basket['g'],basket['b']])
+
                                 self.scheduling_required_flag.value = True
+
                                 self.scheduling_required_flag_lock.release()
                                 break
 
@@ -312,7 +329,7 @@ class ControlCenter:
             if self.got_init_robot_status:
                 if not self.got_init_orderset:
                     # 제일 처음 오더셋 받기 위함
-                    if self.robot_status['operating_order']['address'] == 0 and self.existing_order_grp_profit.value > 2:
+                    if self.robot_status['operating_order']['address'] == 0 and self.existing_order_grp_profit.value > 1:
                         self.next_orderset_idx_lock.acquire()
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
@@ -421,7 +438,9 @@ class ControlCenter:
 
                     # Send next order set to HQ as HQ.operating_orderset
                     # if self.send_next_orderset_flag: # 실시간 o
-                    if self.send_next_orderset_flag and self.robot_status['operating_order']['id'] == 9999: # 실시간 x
+                    if self.send_next_orderset_flag and (self.robot_status['operating_order']['id'] == 9999 or
+                        self.robot_status['operating_order']['id'] == 99999): # 실시간 x
+
                         massage['orderset'] = self.next_orderset
 
                         self.send_next_orderset_flag_lock.acquire()
@@ -491,7 +510,6 @@ class ControlCenter:
             # 지금은 next_orderset이 변경된 경우 로딩UI에는 실제로 로딩을 할것도 아닌데 새 next_orderset의 아이템이 보여진다.
             # 실제로 로딩해야할 넥스트오더셋의 아이템이 매니저에서 갱신된 경우 소리등의 방식으로 알림을 줘서 워커가 제대로 된
             # 로딩 아이템을 볼 수 있게 해줘야 함.
-
             items = self.robot_status['operating_orderset']['item']
 
             return render_template('loading.html', items=items)
@@ -512,7 +530,6 @@ class ControlCenter:
                 self.update_inventory_flag_lock.acquire()
                 self.update_inventory_flag = True
                 self.update_inventory_flag_lock.release()
-
             return render_template('loading_success.html')
 
         @app.route('/unloading')
@@ -528,6 +545,7 @@ class ControlCenter:
 
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
+
 
             if self.robot_status['operating_order']['id'] == self.unloading_complete_id:
                 pass
@@ -628,7 +646,9 @@ class ControlCenter:
                                  self.next_orderset_idx,
                                  self.next_orderset_idx_lock,
                                  self.operating_order_id,
-                                 self.robot_status,
+                                 self.schedule_direction,
+                                 self.schedule_current_address,
+                                 self.schedule_current_basket
                                 ))
 
         t_ControlDB.daemon = True
