@@ -121,8 +121,7 @@ def add_partial_info(partial_orders):
         partial_order['profit'] /= len(partial_orders)
     return partial_orders
 
-def partialize(orders, item_limit, current_basket=None):
-    # Loading zone / unloading zone 여부를 알 수 있어야
+def partialize(orders, item_limit):
     no_split = list(filter(lambda x: count_items(x) <= item_limit, orders))
     need_split = list(filter(lambda x: count_items(x) > item_limit, orders))
     if len(need_split):

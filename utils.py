@@ -1,7 +1,7 @@
 import numpy as np
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
-BASKET_SIZE = 20
+BASKET_SIZE = 50
 
 PARTIAL_THRESHOLD = 20
 
