@@ -11,7 +11,7 @@ import pandas as pd
 import mysql.connector
 import orderdic as od
 from utils import *
-from greedy_scheduler import *
+from scheduler import *
 
 
 def Schedule(existing_order_grp_profit,
@@ -68,7 +68,6 @@ def Schedule(existing_order_grp_profit,
         # Make order sets
         all_ordersets = []
         for osID, do_group in enumerate(grouped_dumped_orders):
-            # TODO : make path for multiple addresses
             # TODO : use robot status information to make path
             # TODO : improve algorithm estimating profit
             os = od.makeOrderSet(rs, osID, do_group, profit=1)
