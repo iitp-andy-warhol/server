@@ -44,7 +44,7 @@ def Schedule(existing_order_grp_profit,
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        print("!!"*100)
+        # print("!!"*100)
         print(rs['operating_order']['id'])
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         current_basket = rs['current_basket']
@@ -86,22 +86,20 @@ def Schedule(existing_order_grp_profit,
         if not to_loading_zone:
             this_dump = []
             group_by_address = group_same_address(this_os).values()
-            for dumped_order in group_by_address:
+            for i, dumped_order in enumerate(group_by_address, 1):
+                dumID = len(all_dumps) + i
                 this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
-                dumID = len(all_dumps) + len(this_dump)
-            if len(this_dump):
-                grouped_dumped_orders.insert(0, this_dump)
+            grouped_dumped_orders.insert(0, this_dump)
 
         # Make order sets
         all_ordersets = []
         nonlocal osID
         for do_group in grouped_dumped_orders:
-            if len(do_group):
-                # TODO : use robot status information to make path
-                # TODO : improve algorithm estimating profit
-                os = od.makeOrderSet(rs, osID, do_group, profit=1)
-                all_ordersets.append(os)
-                osID += 1
+            # TODO : use robot status information to make path
+            # TODO : improve algorithm estimating profit
+            os = od.makeOrderSet(rs, osID, do_group, profit=1)
+            all_ordersets.append(os)
+            osID += 1
 
         # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)

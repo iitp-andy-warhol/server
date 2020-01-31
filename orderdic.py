@@ -76,24 +76,26 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
     """
 
     r = g = b = 0
-    if DumpedOrderList is None:
+    current_address = robot_status['current_address']
+    direction = robot_status['direction']
+    if DumpedOrderList == []:
         lst = []
-        path = None
+        path = make_shorter_path(current_address, 0, direction)
+        path = path[1:]
     else:
         lst = DumpedOrderList
         r = count_color(DumpedOrderList, 'r')
         g = count_color(DumpedOrderList, 'g')
         b = count_color(DumpedOrderList, 'b')
         address_set = set([do['address'] for do in DumpedOrderList])
-        path = make_path(direction=robot_status['direction'],
-                         current_address=robot_status['current_address'],
+        path = make_path(direction=direction,
+                         current_address=current_address,
                          order_address=address_set)
         do_dict = {dumped_order['address']: dumped_order for dumped_order in lst}
         lst = [do_dict[address] for address in path if address in set(range(1,7))]
-        path_string = stringify_path(path)
-        # TODO : sync
     dummy = makeDumpedOrder(dummy=True)
     lst.append(dummy)
+    path_string = stringify_path(path)
     dic = {
         'id': ordersetid,
         'dumporders': lst,

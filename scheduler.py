@@ -39,7 +39,10 @@ def evaluate_order(curr_location, order):
 
 def compute_driving_cost(curr_location, order):
     destination = order['address']
-    driving_cost = driving_time[curr_location][destination]
+    try:
+        driving_cost = driving_time[curr_location][destination]
+    except:
+        driving_cost = 1.0
     return driving_cost
 
 def compute_unloading_cost(order):
