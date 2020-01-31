@@ -66,6 +66,9 @@ def group_orders_for_basket(orders, current_basket):
             return orders[:i], orders[i:]
     return orders, []
 
+def filter_empty_orders(orders):
+    return list(filter(lambda x: count_items(x) > 0, orders))
+
 def group_orders_n(orders, item_limit):
     # Split a sequence of orders to sub-sequences,
     # so that all sub-sequences meet the item_limit

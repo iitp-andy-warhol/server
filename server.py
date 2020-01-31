@@ -57,6 +57,7 @@ def Schedule(existing_order_grp_profit,
 
         if to_loading_zone:
             # Sort orders by profit
+            all_partials = filter_empty_orders(all_partials)
             partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
             grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
         else:
@@ -64,6 +65,9 @@ def Schedule(existing_order_grp_profit,
             in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
             this_os, remaining_orders = group_orders_for_basket(in_basket, current_basket)
             remaining_orders += not_in_basket
+
+            this_os = filter_empty_orders(this_os)
+            remaining_orders = filter_empty_orders(remaining_orders)
 
             # Sort remaining orders by profit
             remaining_orders = sort_orders(remaining_orders, by='profit', ascending=False)
@@ -93,11 +97,12 @@ def Schedule(existing_order_grp_profit,
         all_ordersets = []
         nonlocal osID
         for do_group in grouped_dumped_orders:
-            # TODO : use robot status information to make path
-            # TODO : improve algorithm estimating profit
-            os = od.makeOrderSet(rs, osID, do_group, profit=1)
-            all_ordersets.append(os)
-            osID += 1
+            if len(do_group):
+                # TODO : use robot status information to make path
+                # TODO : improve algorithm estimating profit
+                os = od.makeOrderSet(rs, osID, do_group, profit=1)
+                all_ordersets.append(os)
+                osID += 1
 
         # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)
@@ -193,7 +198,7 @@ class ControlCenter:
         self.update_order_grp_flag = mp.Manager().Value('flag', False)
         self.update_order_grp_flag_lock = mp.Lock()
 
-        self.next_orderset = {'init': 'init', 'item': {'r':99,'g':99,'b':99}, 'id':99999999}
+        self.next_orderset = {'init': 'init', 'item':  {'r': 0, 'g': 0, 'b': 0}, 'id':99999999}
         self.next_orderset_lock = mp.Lock()
 
         self.send_next_orderset_flag = False
@@ -223,8 +228,8 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]},
-             'operating_orderset':{'item': {'r':99,'g':99,'b':99}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0}})
+            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[999999]},
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0}})
 
         self.robot_status_log = []
 
@@ -405,7 +410,7 @@ class ControlCenter:
                             self.got_init_orderset = False
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
-                                {'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 99, 'g': 99, 'b': 99},
+                                {'operating_order': {'address': 99999, 'id': 99999, 'item':  {'r': 0, 'g': 0, 'b': 0},
                                                      'orderid': [999999]}})
 
                             self.just_get_db_flag_lock.acquire()
