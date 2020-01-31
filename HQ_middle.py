@@ -140,7 +140,7 @@ def receive_robot_command(server, client):
             command['path_id'] = operating_orderset['id']
             command['message'] = massage['massage']
 
-        sendData = pickle.dumps(command, protocol=pickle.HIGHEST_PROTOCOL)
+        sendData = pickle.dumps(command, protocol=3)
         client.send(sendData)
 
 
@@ -152,7 +152,7 @@ operating_orderset = {'init': 'init', 'id': 99999999,
                      'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
                      'path': None, 'profit': None, 'item': {'r': 0, 'g': 0, 'b': 0}}
 
-operating_order = {'address': 0, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[999999]}
+operating_order = {'address': 0, 'id': 99999, 'item': {'r':0,'g':0,'b':0}, 'orderid':[999999]}
 next_orderset = None
 
 operating_order_idx = 0
