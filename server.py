@@ -38,14 +38,16 @@ def Schedule(existing_order_grp_profit,
     @timefn
     def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
         if len(pdf) == 0:
+            print("?"*100)
             return None
+        # pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
+        # pdf = pdf[pdf['item'] > 0]
         pdf['partialid'] = 0
         pdf['profit'] = 1
+        print("!"*100, len(pdf))
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        print("!!"*100)
-        print(rs['operating_order']['id'])
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         current_basket = rs['current_basket']
 
@@ -89,8 +91,7 @@ def Schedule(existing_order_grp_profit,
             for dumped_order in group_by_address:
                 this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
                 dumID = len(all_dumps) + len(this_dump)
-            if len(this_dump):
-                grouped_dumped_orders.insert(0, this_dump)
+            grouped_dumped_orders.insert(0, this_dump)
 
         # Make order sets
         all_ordersets = []
@@ -118,7 +119,7 @@ def Schedule(existing_order_grp_profit,
                 'direction': direction.value,
                 'current_address': current_address.value,
                 'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
-                'operating_order': {'id':operating_dump_id.value}
+                'operating_order': {'id':operating_dump_id}
             }
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
@@ -227,7 +228,7 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[999999]},
+            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
              'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0}})
 
         self.robot_status_log = []
@@ -382,8 +383,7 @@ class ControlCenter:
                             self.schedule_changed_flag.value = False
                             self.schedule_changed_flag_lock.release()
 
-                if self.robot_status['operating_order']['id'] == 9999 and self.robot_status['current_address'] == 0\
-                        and self.got_init_orderset:
+                if self.robot_status['operating_order']['id'] == 9999 and self.got_init_orderset:
                     if not did_dummy:
                         did_dummy = True
 
@@ -471,9 +471,9 @@ class ControlCenter:
                     }
 
                     # Send next order set to HQ as HQ.operating_orderset
-                    # if self.send_next_orderset_flag: # 실시간 o
-                    if self.send_next_orderset_flag and (self.robot_status['operating_order']['id'] == 9999 or
-                        self.robot_status['operating_order']['id'] == 99999): # 실시간 x
+                    if self.send_next_orderset_flag: # 실시간 o
+                    # if self.send_next_orderset_flag and (self.robot_status['operating_order']['id'] == 9999 or
+                    #     self.robot_status['operating_order']['id'] == 99999): # 실시간 x
 
                         massage['orderset'] = self.next_orderset
 
