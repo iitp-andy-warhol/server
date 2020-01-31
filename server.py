@@ -46,7 +46,7 @@ def Schedule(existing_order_grp_profit,
         # Convert to partial orders
         print("!!"*100)
         print(rs['operating_order']['id'])
-        to_loading_zone = rs['operating_order']['id'] not in [9999, 99999]
+        to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         current_basket = rs['current_basket']
 
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
