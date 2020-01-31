@@ -484,7 +484,7 @@ while True:
             operating_turn = current_path.pop(0)
             turn_flag = True
             print('Next: ', operating_path, operating_turn)
-        elif len(current_path) == 1 and current_path[0] != 0:
+        elif len(current_path) > 0 and current_path[0] != 0:
             operating_path = current_path.pop(0)
             print('Next: ', operating_path)
         else:
