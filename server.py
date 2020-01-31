@@ -89,8 +89,8 @@ def Schedule(existing_order_grp_profit,
             this_dump = []
             group_by_address = group_same_address(this_os).values()
             for dumped_order in group_by_address:
+                dumID = len(all_dumps) + len(this_dump) + 1
                 this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
-                dumID = len(all_dumps) + len(this_dump)
             grouped_dumped_orders.insert(0, this_dump)
 
         # Make order sets
@@ -229,7 +229,8 @@ class ControlCenter:
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0}})
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
+             'action': 'loading'})
 
         self.robot_status_log = []
 
@@ -364,7 +365,7 @@ class ControlCenter:
             if self.got_init_robot_status:
                 if not self.got_init_orderset:
                     # 제일 처음 오더셋 받기 위함
-                    if self.robot_status['operating_order']['address'] == 0 and self.existing_order_grp_profit.value > 1:
+                    if self.robot_status['operating_order']['address'] == 0 and self.existing_order_grp_profit.value > 0:
                         self.next_orderset_idx_lock.acquire()
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
@@ -410,7 +411,8 @@ class ControlCenter:
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
                                 {'operating_order': {'address': 99999, 'id': 99999, 'item':  {'r': 0, 'g': 0, 'b': 0},
-                                                     'orderid': [999999]}})
+                                                     'orderid': [999999]},
+                                 'action':'loading'})
 
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
