@@ -29,7 +29,8 @@ def Schedule(existing_order_grp_profit,
              operating_order_id,
              direction,
              current_address,
-             current_basket):
+             current_basket,
+             operating_dump_id):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
     osID = 0
@@ -110,13 +111,17 @@ def Schedule(existing_order_grp_profit,
             schedule_info = {
                 'direction': direction.value,
                 'current_address': current_address.value,
-                'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]}
+                'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
+                'operating_order': {'id':operating_dump_id}
             }
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
-
+            print('11111111111111111111111111111111111111111111111111111111111111111')
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
+
+            print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
             if new_order_grp is not None:
+                print('3333333333333333333333333333333333333333', new_order_grp)
                 order_grp_new_lock.acquire()
                 order_grp_new['dict'] = new_order_grp
                 order_grp_new_lock.release()
@@ -224,6 +229,7 @@ class ControlCenter:
         self.schedule_direction = mp.Value('i', 1)
         self.schedule_current_address = mp.Value('i',0)
         self.schedule_current_basket = mp.Array('i', [0,0,0])
+        self.schedule_operating_dump_id = mp.Value('i', 99999)
 
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
@@ -498,6 +504,7 @@ class ControlCenter:
                 self.robot_status = mp.Manager().dict(data)
 
                 self.got_init_robot_status = True
+                self.schedule_operating_dump_id = data['operating_order']['id']
 
         port = 8081
 
@@ -671,7 +678,8 @@ class ControlCenter:
                                  self.operating_order_id,
                                  self.schedule_direction,
                                  self.schedule_current_address,
-                                 self.schedule_current_basket
+                                 self.schedule_current_basket,
+                                 self.schedule_operating_dump_id,
                                 ))
 
         t_ControlDB.daemon = True
