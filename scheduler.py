@@ -125,8 +125,7 @@ def partialize_n(order, item_limit):
 
 def add_partial_value(partial_orders):
     total_item_count = count_items(partial_orders)
-    for partial_order in enumerate(partial_orders):
-        # partial_order['partialid'] = i
+    for partial_order in partial_orders:
         partial_order['profit'] *= (count_items(partial_order) / total_item_count)
     return partial_orders
 
@@ -135,7 +134,7 @@ def add_partial_id(orders):
         order['partialid'] = i
     return orders
 
-def partialize_for_basket(order, current_basket):
+def split_for_basket(order, current_basket):
     basket_items = np.array([current_basket['r'],
                              current_basket['g'],
                              current_basket['b']])
@@ -158,7 +157,7 @@ def fit_basket(order, current_basket):
     red = count_color(order, 'r') <= current_basket['r']
     green = count_color(order, 'g') <= current_basket['g']
     blue = count_color(order, 'b') <= current_basket['b']
-    return all(red, green, blue)
+    return all([red, green, blue])
 
 def partialize_for_loading(orders, item_limit):
     splitted_orders = [[]]
@@ -169,16 +168,15 @@ def partialize_for_loading(orders, item_limit):
 
     all_partials = no_split + splitted_orders
 
-    all_partials = list(filter(lambda x: count_items(x) > 0), all_partials)
+    all_partials = list(filter(lambda x: count_items(x) > 0, all_partials))
     all_partials = add_partial_id(all_partials)
     return all_partials
 
 def partialize_for_basket(orders, current_basket):
-    splitted_orders =[[]]
     no_split = list(filter(lambda x: fit_basket(x, current_basket), orders))
-
     need_split = list(filter(lambda x: not fit_basket(x, current_basket), orders))
-    splitted_orders += [partialize_for_basket(order, current_basket) for order in need_split]
+
+    splitted_orders = [split_for_basket(order, current_basket) for order in need_split]
     splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
 
     all_orders = no_split + splitted_orders

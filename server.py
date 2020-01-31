@@ -51,9 +51,8 @@ def Schedule(existing_order_grp_profit,
         # Update order profit
         all_partials = [evaluate_order(rs['current_address'], order) for order in all_partials]
 
-
         if not to_loading_zone:
-            in_basket, not_in_basket = list(zip(*[partialize_for_basket(order, current_basket=current_basket) for order in all_partials]))
+            in_basket, not_in_basket = partialize_for_basket(all_partials, current_basket)
             in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
             this_os, remaining_orders = group_orders_for_basket(in_basket, current_basket)
             remaining_orders += not_in_basket
@@ -63,7 +62,6 @@ def Schedule(existing_order_grp_profit,
 
             # Group partial orders
             grouped_partial_orders = group_orders_n(remaining_orders, BASKET_SIZE)
-            # grouped_partial_orders.insert(0, this_os)
 
         else:
             # Sort orders by profit
