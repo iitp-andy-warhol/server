@@ -38,17 +38,15 @@ def Schedule(existing_order_grp_profit,
     @timefn
     def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
         if len(pdf) == 0:
-            print("?"*100)
             return None
         pdf['partialid'] = 0
         pdf['profit'] = 1
-        # print("!"*100, len(pdf))
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
         print("!!"*100)
         print(rs['operating_order']['id'])
-        to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
+        to_loading_zone = rs['operating_order']['id'] not in [9999, 99999]
         current_basket = rs['current_basket']
 
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
