@@ -66,8 +66,8 @@ def receive_robot_command(server, client):
                 orderset_block = True
             else:
                 operating_orderset = {'init': 'init', 'id': 99999999,
-                                      'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 99, 'g': 99, 'b': 99}, 'address': 0}],
-                                      'path': None, 'profit': None, 'item': {'r': 99, 'g': 99, 'b': 99}}
+                                      'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
+                                      'path': None, 'profit': None, 'item': {'r': 0, 'g': 0, 'b': 0}}
 
                 operating_order_idx_lock.acquire()
                 operating_order_idx = 0  # reset idx
@@ -149,10 +149,10 @@ current_address = 0
 action = 'loading'
 current_basket = {'r': 0, 'g': 0, 'b': 0}
 operating_orderset = {'init': 'init', 'id': 99999999,
-                     'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 99, 'g': 99, 'b': 99}, 'address': 0}],
-                     'path': None, 'profit': None, 'item': {'r': 99, 'g': 99, 'b': 99}}
+                     'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
+                     'path': None, 'profit': None, 'item': {'r': 0, 'g': 0, 'b': 0}}
 
-operating_order = {'address': 0, 'id': 99999, 'item': {'r':99,'g':99,'b':99}, 'orderid':[999999]}
+operating_order = {'address': 0, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[999999]}
 next_orderset = None
 
 operating_order_idx = 0

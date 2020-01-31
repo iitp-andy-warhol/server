@@ -88,9 +88,10 @@ def evaluate_order_set(order_set):
 
 def sort_orders(orders, by, ascending=False):
     # 일단은 greedy 하게 profit 이 큰 순서대로 정렬
-    orders = sorted(orders, key=lambda x: x[by])
-    if not ascending:
-        return orders[::-1]
+    if len(orders):
+        orders = sorted(orders, key=lambda x: x[by])
+        if not ascending:
+            return orders[::-1]
     return orders
 
 def sort_order_sets(order_group):
@@ -171,11 +172,13 @@ def partialize_for_loading(orders, item_limit):
     all_partials = add_partial_id(all_partials)
     return all_partials
 
+@timefn
 def partialize_for_basket(orders, current_basket):
     no_split = list(filter(lambda x: fit_basket(x, current_basket), orders))
     need_split = list(filter(lambda x: not fit_basket(x, current_basket), orders))
 
-    splitted_orders = [split_for_basket(order, current_basket) for order in need_split]
+    splitted_orders = [[]]
+    splitted_orders += [split_for_basket(order, current_basket) for order in need_split]
     splitted_orders = functools.reduce(lambda x, y: x + y, splitted_orders)
 
     all_orders = no_split + splitted_orders
