@@ -225,8 +225,9 @@ class ControlCenter:
         self.got_init_robot_status = False
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
-            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[999999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0}})
+            {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
+             'action': 'loading'})
 
         self.robot_status_log = []
 
@@ -361,7 +362,7 @@ class ControlCenter:
             if self.got_init_robot_status:
                 if not self.got_init_orderset:
                     # 제일 처음 오더셋 받기 위함
-                    if self.robot_status['operating_order']['address'] == 0 and self.existing_order_grp_profit.value > 1:
+                    if self.robot_status['operating_order']['address'] == 0 and self.existing_order_grp_profit.value > 0:
                         self.next_orderset_idx_lock.acquire()
                         self.next_orderset_idx.value += 1
                         self.next_orderset_idx_lock.release()
@@ -380,8 +381,7 @@ class ControlCenter:
                             self.schedule_changed_flag.value = False
                             self.schedule_changed_flag_lock.release()
 
-                if self.robot_status['operating_order']['id'] == 9999 and self.robot_status['current_address'] == 0\
-                        and self.got_init_orderset:
+                if self.robot_status['operating_order']['id'] == 9999 and self.got_init_orderset:
                     if not did_dummy:
                         did_dummy = True
 
@@ -408,7 +408,8 @@ class ControlCenter:
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
                                 {'operating_order': {'address': 99999, 'id': 99999, 'item':  {'r': 0, 'g': 0, 'b': 0},
-                                                     'orderid': [999999]}})
+                                                     'orderid': [999999]},
+                                 'action':'loading'})
 
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
@@ -469,9 +470,9 @@ class ControlCenter:
                     }
 
                     # Send next order set to HQ as HQ.operating_orderset
-                    # if self.send_next_orderset_flag: # 실시간 o
-                    if self.send_next_orderset_flag and (self.robot_status['operating_order']['id'] == 9999 or
-                        self.robot_status['operating_order']['id'] == 99999): # 실시간 x
+                    if self.send_next_orderset_flag: # 실시간 o
+                    # if self.send_next_orderset_flag and (self.robot_status['operating_order']['id'] == 9999 or
+                    #     self.robot_status['operating_order']['id'] == 99999): # 실시간 x
 
                         massage['orderset'] = self.next_orderset
 
