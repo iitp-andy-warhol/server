@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
 BASKET_SIZE = 50
@@ -76,3 +77,15 @@ def make_shorter_path(start, end, direction):
         return [start, end]
     else:
         return [start, ROTATION, end]
+
+import time
+
+def timefn(fn):
+    # Prints the time taken to run the inner function.
+    def wrap(*args, **kwargs):
+        t1 = time.time()
+        result = fn(*args, **kwargs)
+        t2 = time.time()
+        print(f"@timefn: {fn.__name__} took {t2-t1} seconds")
+        return result
+    return wrap

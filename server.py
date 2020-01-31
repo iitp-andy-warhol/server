@@ -35,13 +35,16 @@ def Schedule(existing_order_grp_profit,
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
     osID = 0
 
+    @timefn
     def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
         if len(pdf) == 0:
+            print("?"*100)
             return None
-        pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
-        pdf = pdf[pdf['item'] > 0]
+        # pdf['item'] = pdf['red'] + pdf['green'] + pdf['blue']
+        # pdf = pdf[pdf['item'] > 0]
         pdf['partialid'] = 0
         pdf['profit'] = 1
+        print("!"*100, len(pdf))
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
@@ -52,7 +55,11 @@ def Schedule(existing_order_grp_profit,
         # Update order profit
         all_partials = [evaluate_order(rs['current_address'], order) for order in all_partials]
 
-        if not to_loading_zone:
+        if to_loading_zone:
+            # Sort orders by profit
+            partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
+            grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
+        else:
             in_basket, not_in_basket = partialize_for_basket(all_partials, current_basket)
             in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
             this_os, remaining_orders = group_orders_for_basket(in_basket, current_basket)
@@ -63,11 +70,6 @@ def Schedule(existing_order_grp_profit,
 
             # Group partial orders
             grouped_partial_orders = group_orders_n(remaining_orders, BASKET_SIZE)
-
-        else:
-            # Sort orders by profit
-            partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
-            grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
 
         # Make dump orders
         all_dumps = []
@@ -281,7 +283,6 @@ class ControlCenter:
                         if id_ not in list(self.pending_df.df['id']):
                             count += 1
                             if count >= 3:
-
                                 self.pending_df_lock.acquire()
                                 self.pending_df.df = pending_df
                                 self.pending_df_lock.release()
@@ -687,6 +688,7 @@ class ControlCenter:
         t_Manager.daemon = True
         t_RobotSocket.daemon = True
         t_PrintLog.daemon = True
+        # p_Schedule.daemon = True
 
         t_ControlDB.start()
         t_UIServer.start()

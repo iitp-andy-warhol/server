@@ -55,20 +55,16 @@ def group_orders_once(orders, item_limit):
     # Split a sequence of orders to two parts.
     # The first part is a list of orders with num_item < item_limit, 
     # and the second part is rest of the orders.
-    i = 0
-    order_group = []
-    while count_items(order_group) <= item_limit:
-        i += 1
-        order_group = orders[:i]
-    return orders[:i-1], orders[i-1:]
+    for i in range(len(orders)):
+        if count_items(orders[:i+1]) > item_limit:
+            return orders[:i], orders[i:]
+    return orders, []
 
 def group_orders_for_basket(orders, current_basket):
-    i = 0
-    order_group = []
-    while fit_basket(order_group, current_basket):
-        i += 1
-        order_group = orders[:i]
-    return orders[:i-1], orders[i-1:]
+    for i in range(len(orders)):
+        if not fit_basket(orders[:i+1], current_basket):
+            return orders[:i], orders[i:]
+    return orders, []
 
 def group_orders_n(orders, item_limit):
     # Split a sequence of orders to sub-sequences,
