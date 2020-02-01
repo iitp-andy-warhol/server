@@ -47,13 +47,14 @@ def Schedule(existing_order_grp_profit,
         # print("!!"*100)
         print(rs['operating_order']['id'])
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
+        at_loading_zone = rs['current_address'] == 0
         current_basket = rs['current_basket']
 
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
         # Update order profit
         all_partials = [evaluate_order(rs['current_address'], order) for order in all_partials]
 
-        if to_loading_zone:
+        if to_loading_zone or at_loading_zone:
             # Sort orders by profit
             all_partials = filter_empty_orders(all_partials)
             partials_sorted = sort_orders(all_partials, by='profit', ascending=False)
@@ -83,7 +84,9 @@ def Schedule(existing_order_grp_profit,
 
         grouped_dumped_orders = group_orders_n(all_dumps, BASKET_SIZE)
 
-        if not to_loading_zone:
+        if to_loading_zone or at_loading_zone:
+            grouped_dumped_orders = filter_empty_orders(grouped_dumped_orders)
+        else:
             this_dump = []
             group_by_address = group_same_address(this_os).values()
             for i, dumped_order in enumerate(group_by_address, 1):
