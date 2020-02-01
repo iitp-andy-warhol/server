@@ -170,7 +170,9 @@ def largePrint(text):
 
 class ControlCenter:
     def __init__(self):
-        largePrint('ControlCenter is initialized')
+        with open("banana.txt") as f:
+            print(f.read())
+
         self.pending_pdf_colname = ['id', 'address', 'red', 'green', 'blue', 'required_red','required_green','required_blue', 'orderdate']
         self.pending_df = mp.Manager().Namespace()
         self.pending_df.df = pd.DataFrame(columns=self.pending_pdf_colname)
