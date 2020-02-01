@@ -168,10 +168,96 @@ def largePrint(text):
           '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@',
           sep='\n')
 
+class Logger:
+    def __init__(self):
+        self.host = 'localhost'
+        self.user = 'root'
+        self.passwd = 'pass'
+        self.dbname = 'orderdb'
+
+        print("START EXPERIMENT")
+        self.experiment = {
+            'table_name': 'experiment',
+            'max_time': input('Please enter max_time        :'),
+            'num_order': input('Please enter num_order       :'),
+            'order_stop_time': input('Please enter order_stop_time :'),
+            'scheduler_id': input('Please enter scheduler_id    :')
+        }
+        self.scheduling = {
+            'table_name': 'scheduling',
+            'scheduler_id': self.experiment['scheduler_id'],
+            'start_time': None,
+            'end_time': None,
+            'num_order': None,
+            'num_item': None
+        }
+        self.departure = {
+            'table_name': 'departure',
+            'depart_time': None,
+            'arrive_time': None,
+            'num_order': None,
+            'num_item': None
+        }
+        self.timestamp_loading = {
+            'table_name': 'timestamp_loading',
+            'num_item': None,
+            'refresh_alert_time': None,
+            'connect_time': None,
+            'confirm_time': None
+        }
+        self.timestamp_unloading = {
+            'table_name': 'timestamp_unloading',
+            'num_item': None,
+            'refresh_alert_time': None,
+            'connect_time': None,
+            'confirm_time': None
+        }
+
+        self.InsertLog(self.experiment)
+        self.exp_id = self.get_exp_id()
+
+        input(f"Press Enter to Start Experiment #{self.exp_id}")
+
+    def get_exp_id(self):
+        cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+                                      auth_plugin='mysql_native_password')
+        cursor = cnx.cursor()
+        query = "SELECT MAX(exp_id) FROM experiment;"
+        cursor.execute(query)
+        return cursor.fetchall()[0][0]
+
+    def InsertLog(self, table):
+        cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+                                      auth_plugin='mysql_native_password')
+        cursor = cnx.cursor()
+
+        tbname = table['table_name']
+        col = ''
+        val = ''
+        for key in list(table_name.keys())[0:]:
+            col = col + key + ', '
+            val = val + table[key] + ', '
+        col = col[:-2]
+        val = val[:-2]
+
+        query = f"INSERT INTO {tbname} ({col}) VALUES ({val});"
+        cursor.execute(query)
+        cnx.commit()
+
+    def EndExperiment(self):
+        cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+                                      auth_plugin='mysql_native_password')
+        cursor = cnx.cursor()
+        query = f'UPDATE experiment SET end_time = NOW(), num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0) WHERE exp_id = {self.exp_id};'
+        cursor.execute(query)
+        cnx.commit()
+
+
 class ControlCenter:
     def __init__(self):
         with open("banana.txt") as f:
             print('\n', f.read(),'\n')
+        self.logger = Logger()
 
         self.pending_pdf_colname = ['id', 'address', 'red', 'green', 'blue', 'required_red','required_green','required_blue', 'orderdate']
         self.pending_df = mp.Manager().Namespace()
