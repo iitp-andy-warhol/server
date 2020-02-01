@@ -49,7 +49,7 @@ def count_color(orders, color):
 
 def make_path(direction, current_address, order_address):
     address = list(set(order_address))
-    if direction > 0:
+    if direction == 1:
         front = list(filter(lambda x: x >= current_address, address))
         behind = list(filter(lambda x: x < current_address, address))
         front = sorted(front)
@@ -58,27 +58,27 @@ def make_path(direction, current_address, order_address):
         front = list(filter(lambda x: x <= current_address, address))
         behind = list(filter(lambda x: x > current_address, address))
         front = sorted(front)[::-1]
-        behind = sorted(behind)[::-1]
-    rotate = []
-    if len(front) * len(behind) > 0:
-        if SHORT_DIRECTION[front[-1]][behind[0]] != direction:
-            rotate = [ROTATION]
-    path = front + rotate + behind
-    returning_path = make_shorter_path(path[-1], 0, direction)
-    path = path + returning_path[1:]
-    return path
+        behind = sorted(behind)
+    addresses = [current_address] + front + behind + [0]
+    final_path = []
+    for i in range(len(front+behind)+1):
+        start = addresses[i]
+        end = addresses[i+1]
+        path, direction = make_shorter_path(start, end, direction)
+        final_path.extend(path[1:])
+    return final_path
 
 def stringify_path(address_seq):
     path_string = ''.join(list(map(str, address_seq)))
     return path_string
 
 def make_shorter_path(start, end, direction):
+    if start == end:
+        return [start, end], direction
     if SHORT_DIRECTION[start][end] == direction:
-        return [start, end]
+        return [start, end], direction
     else:
-        return [start, ROTATION, end]
-
-import time
+        return [start, ROTATION, end], -direction
 
 def timefn(fn):
     # Prints the time taken to run the inner function.
@@ -89,3 +89,7 @@ def timefn(fn):
         print(f"@timefn: {fn.__name__} took {t2-t1} seconds")
         return result
     return wrap
+
+if __name__ == "__main__":
+    p = make_path(-1, 0, [3])
+    print(p)

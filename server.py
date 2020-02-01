@@ -440,7 +440,7 @@ class ControlCenter:
             # Update inventory
             if self.update_inventory_flag:
                 if self.loading_complete_flag:
-                    item = self.robot_status['operating_order']['item']
+                    item = self.robot_status['operating_orderset']['item']
                     self.inventory_lock.acquire()
                     self.inventory['r'] -= item['r']
                     self.inventory['g'] -= item['g']
@@ -499,7 +499,7 @@ class ControlCenter:
                         self.unloading_complete_flag = False
                         self.unloading_complete_flag_lock.release()
 
-                    sock.send(pickle.dumps(massage, protocol=pickle.HIGHEST_PROTOCOL))
+                    sock.sendall(pickle.dumps(massage, protocol=pickle.HIGHEST_PROTOCOL))
                 time.sleep(0.2)
 
         def get_robot_status(sock):
