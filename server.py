@@ -171,7 +171,7 @@ def largePrint(text):
 class ControlCenter:
     def __init__(self):
         with open("banana.txt") as f:
-            print(f.read())
+            print('\n', f.read(),'\n')
 
         self.pending_pdf_colname = ['id', 'address', 'red', 'green', 'blue', 'required_red','required_green','required_blue', 'orderdate']
         self.pending_df = mp.Manager().Namespace()
