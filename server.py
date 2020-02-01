@@ -12,6 +12,7 @@ import mysql.connector
 import orderdic as od
 from utils import *
 from scheduler import *
+import copy
 
 
 def Schedule(existing_order_grp_profit,
@@ -229,8 +230,9 @@ class ControlCenter:
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
-             'action': 'loading'})
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
+             'action': 'loading',
+             'next_orderset': None})
 
         self.robot_status_log = []
 
@@ -295,10 +297,16 @@ class ControlCenter:
                                 dbup_time = time.time()
 
                                 self.scheduling_required_flag_lock.acquire()
-                                self.schedule_direction.value =  self.robot_status['direction']
-                                self.schedule_current_address.value = self.robot_status['current_address']
-                                basket = self.robot_status['current_basket']
-                                self.schedule_current_basket = mp.Array('i', [basket['r'],basket['g'],basket['b']])
+                                rs = copy.deepcopy(self.robot_status)
+                                self.schedule_direction.value = rs['direction']
+                                self.schedule_current_address.value = rs['operating_order']['address']
+                                cur_basket = rs['current_basket']
+                                fut_basket = {
+                                    'r': cur_basket['r'] - rs['operating_order']['item']['r'],
+                                    'g': cur_basket['g'] - rs['operating_order']['item']['g'],
+                                    'b': cur_basket['b'] - rs['operating_order']['item']['b']
+                                }
+                                self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
 
                                 self.scheduling_required_flag.value = True
 
@@ -410,9 +418,13 @@ class ControlCenter:
                             self.got_init_orderset = False
                             self.existing_order_grp_profit.value = 0
                             self.robot_status = mp.Manager().dict(
-                                {'operating_order': {'address': 99999, 'id': 99999, 'item':  {'r': 0, 'g': 0, 'b': 0},
-                                                     'orderid': [999999]},
-                                 'action':'loading'})
+                                {'direction': 1, 'current_address': 0,
+                                 'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0},
+                                                     'orderid': [99999]},
+                                 'operating_orderset': {'item': {'r': 0, 'g': 0, 'b': 0}, 'id': 99999999},
+                                 'current_basket': {'r': 0, 'g': 0, 'b': 0},
+                                 'action': 'loading',
+                                 'next_orderset': None})
 
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
@@ -437,6 +449,14 @@ class ControlCenter:
                     self.schedule_changed_flag.value = False
                     self.schedule_changed_flag_lock.release()
 
+                if self.robot_status['next_orderset'] is None and self.next_orderset['id'] != self.robot_status['operating_orderset']['id']: # HQ가 넥스트오더셋 안받고 버리는 경우 다시보내주기
+                    self.send_next_orderset_flag_lock.acquire()
+                    self.send_next_orderset_flag = True
+                    self.send_next_orderset_flag_lock.release()
+
+            # if self.next_orderset['id'] == self.robot_status['operating_orderset']['id']:
+
+
             # Update inventory
             if self.update_inventory_flag:
                 if self.loading_complete_flag:
@@ -458,6 +478,8 @@ class ControlCenter:
                 self.update_inventory_flag_lock.acquire()
                 self.update_inventory_flag = False
                 self.update_inventory_flag_lock.release()
+
+
 
             time.sleep(0.1)
 
