@@ -33,6 +33,7 @@ def receive_robot_command(server, client):
     global need_after_loading_job_flag, need_after_loading_job_flag_lock, need_after_unloading_job_flag, need_after_unloading_job_flag_lock
     global current_basket, action, next_orderset
     current_massage = None
+    current_id = None
     orderset_block = False
     while True:
         recvData = server.recv(8192)
@@ -43,7 +44,9 @@ def receive_robot_command(server, client):
             current_massage = np.copy(massage)
 
         if massage['orderset'] is not None and not orderset_block:
-            next_orderset = massage['orderset']
+            if massage['orderset']['id'] != current_id:
+                next_orderset = massage['orderset']
+                current_id = massage['orderset']['id']
             # print(1111, next_orderset)
 
         if action == 'loading' and (operating_order['id'] == 99999 or operating_order['id'] == 9999):
