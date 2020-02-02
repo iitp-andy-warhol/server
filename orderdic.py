@@ -80,7 +80,7 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
     direction = robot_status['direction']
     if DumpedOrderList == []:
         lst = []
-        path = make_shorter_path(current_address, 0, direction)
+        path, _ = find_short_path(current_address, 0, direction)
         path = path[1:]
     else:
         lst = DumpedOrderList
