@@ -76,10 +76,13 @@ def stringify_path(address_seq):
 def make_short_path(start, end, direction):
     if start == end:
         return [start, end], direction
-    if SHORT_DIRECTION[start][end] == direction:
-        return [start, end], direction
-    else:
-        return [start, ROTATION, end], -direction
+    try:
+        if SHORT_DIRECTION[start][end] == direction:
+            return [start, end], direction
+        else:
+            return [start, ROTATION, end], -direction
+    except IndexError:
+        return make_short_path(0, end, direction)
 
 def timefn(fn):
     # Prints the time taken to run the inner function.
@@ -92,5 +95,5 @@ def timefn(fn):
     return wrap
 
 if __name__ == "__main__":
-    p = make_path(-1, 0, [3])
+    p = make_short_path(start=99999, end=3, direction=-1)
     print(p)

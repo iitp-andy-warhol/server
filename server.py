@@ -101,7 +101,8 @@ def Schedule(existing_order_grp_profit,
         for do_group in grouped_dumped_orders:
             # TODO : use robot status information to make path
             # TODO : improve algorithm estimating profit
-            os = od.makeOrderSet(rs, osID, do_group, profit=1)
+            os = od.makeOrderSet(robot_status=rs, ordersetid=osID,
+                                 DumpedOrderList=do_group)
             all_ordersets.append(os)
             osID += 1
 
@@ -274,7 +275,7 @@ class ControlCenter:
         self.order_grp = od.makeOrderGroup()
         self.order_grp_lock = th.Lock()
 
-        self.existing_order_grp_profit = mp.Value('i',0)
+        self.existing_order_grp_profit = mp.Value('d', 0.0)
         self.existing_order_grp_profit_lock = mp.Lock()
 
         self.order_grp_new = mp.Manager().dict({'dict': None, 'ordersets': []})

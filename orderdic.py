@@ -84,15 +84,13 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
         lst = []
         path, _ = make_short_path(current_address, 0, direction)
         path = path[1:]
-        profit = 0
     else:
         lst = DumpedOrderList
         r = count_color(DumpedOrderList, 'r')
         g = count_color(DumpedOrderList, 'g')
         b = count_color(DumpedOrderList, 'b')
         address_set = set([do['address'] for do in DumpedOrderList])
-        address_set = list(filter(lambda x: x in range(0, 7), address_set))
-        print(address_set)
+        address_set = list([add for add in address_set if add in set(range(1, 7))])
         path = make_path(direction=direction,
                          current_address=current_address,
                          order_address=address_set)
