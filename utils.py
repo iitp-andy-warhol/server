@@ -47,6 +47,7 @@ def count_color(orders, color):
     else:
         return sum([count_color(order, color) for order in orders])
 
+
 def make_path(direction, current_address, order_address):
     address = list(set(order_address))
     if direction == 1:
@@ -64,7 +65,7 @@ def make_path(direction, current_address, order_address):
     for i in range(len(front+behind)+1):
         start = addresses[i]
         end = addresses[i+1]
-        path, direction = find_short_path(start, end, direction)
+        path, direction = make_short_path(start, end, direction)
         final_path.extend(path[1:])
     return final_path
 
@@ -72,7 +73,7 @@ def stringify_path(address_seq):
     path_string = ''.join(list(map(str, address_seq)))
     return path_string
 
-def find_short_path(start, end, direction):
+def make_short_path(start, end, direction):
     if start == end:
         return [start, end], direction
     if SHORT_DIRECTION[start][end] == direction:

@@ -49,10 +49,11 @@ def makeDumpedOrder(dumpid=9999, PartialOrderList=[], dummy=False):
         g = count_color(PartialOrderList, 'g')
         b = count_color(PartialOrderList, 'b')
         orderlist = [po['id'] for po in PartialOrderList]
-
         address = PartialOrderList[0]['address']
+        profit = sum([po['profit'] for po in PartialOrderList])
     else:
         address = 0
+        profit = 0
 
 
     dic = {
@@ -60,7 +61,8 @@ def makeDumpedOrder(dumpid=9999, PartialOrderList=[], dummy=False):
         'partial': PartialOrderList,
         'orderid': orderlist,
         'item': {'r': r, 'g': g, 'b': b},
-        'address': address
+        'address': address,
+        'profit': profit
     }
 
     return dic
@@ -80,19 +82,23 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
     direction = robot_status['direction']
     if DumpedOrderList == []:
         lst = []
-        path, _ = find_short_path(current_address, 0, direction)
+        path, _ = make_short_path(current_address, 0, direction)
         path = path[1:]
+        profit = 0
     else:
         lst = DumpedOrderList
         r = count_color(DumpedOrderList, 'r')
         g = count_color(DumpedOrderList, 'g')
         b = count_color(DumpedOrderList, 'b')
         address_set = set([do['address'] for do in DumpedOrderList])
+        address_set = list(filter(lambda x: x in range(0, 7), address_set))
+        print(address_set)
         path = make_path(direction=direction,
                          current_address=current_address,
                          order_address=address_set)
         do_dict = {dumped_order['address']: dumped_order for dumped_order in lst}
-        lst = [do_dict[address] for address in path if address in set(range(1,7))]
+        lst = [do_dict[address] for address in path if address in set(range(1, 7))]
+        profit = sum([do['profit'] for do in lst])
     dummy = makeDumpedOrder(dummy=True)
     lst.append(dummy)
     path_string = stringify_path(path)
