@@ -318,7 +318,6 @@ good_to_go_unloading = False
 
 current_path_id = None
 current_path = None
-path = None
 
 
 # Main game loop
@@ -422,10 +421,9 @@ while True:
         current_address = address
 
     pen.clear()
-    # pen.write(
-    #     "path: {}\ndirection: {}\naddress: {}\naction: {}\nstart: {}\nstop: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\nstop{}: {}\ngood to go loading/unloading: {}/{}".format(
-    #         path, direction, current_address, action, start, stop, 0, stop0, 1, stop1, 2, stop2, 3, stop3, 4, stop4, 5,
-    #         stop5, 6, stop6, good_to_go_loading, good_to_go_unloading), align="center", font=("Courier", 11, "normal"))
+    pen.write(
+        "path: {}\ndirection: {}\naddress: {}\naction: {}\nstop: {}\ngood to go loading/unloading: {}/{}".format(
+            current_path, direction, current_address, action, stop, good_to_go_loading, good_to_go_unloading), align="center", font=("Courier", 11, "normal"))
 
     wn.update()
     # time.sleep(0.2)
