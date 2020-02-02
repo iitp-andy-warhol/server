@@ -66,11 +66,19 @@ def Drive(ccw, car, car_speed, rx, ty, lx, by):
             car.dx = 0
             car.dy = car_speed
 
+        if car.xcor() == rx and car.ycor() == ry:
+            car.dx = 0
+            car.dy = car_speed
+
         if car.ycor() == ty and car.xcor() == rx:
             car.dx = -1 * car_speed
             car.dy = 0
 
         if car.xcor() == lx and car.ycor() == ty:
+            car.dx = 0
+            car.dy = -1 * car_speed
+
+        if car.xcor() == lx and car.ycor() == ly:
             car.dx = 0
             car.dy = -1 * car_speed
 
@@ -88,11 +96,19 @@ def Drive(ccw, car, car_speed, rx, ty, lx, by):
             car.dx = 0
             car.dy = car_speed
 
+        if car.xcor() == lx and car.ycor() == ly:
+            car.dx = 0
+            car.dy = car_speed
+
         if car.ycor() == ty and car.xcor() == lx:
             car.dx = -1 * car_speed
             car.dy = 0
 
         if car.xcor() == rx and car.ycor() == ty:
+            car.dx = 0
+            car.dy = -1 * car_speed
+
+        if car.xcor() == rx and car.ycor() == ry:
             car.dx = 0
             car.dy = -1 * car_speed
 
