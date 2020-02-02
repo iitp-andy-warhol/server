@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from datetime import datetime
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
 BASKET_SIZE = 50
@@ -89,6 +90,23 @@ def timefn(fn):
         print(f"@timefn: {fn.__name__} took {t2-t1} seconds")
         return result
     return wrap
+
+def now():
+    """
+    Get datetime as string like '0000-00-00 00:00:00'
+    :return: string
+    """
+    return not datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def sum_item(items):
+    """
+    Get the sum of the total items
+    :param dict items: item dict
+    :return: int
+    """
+
+    return items['r']+items['g']+items['b']
+
 
 if __name__ == "__main__":
     p = make_path(-1, 0, [3])
