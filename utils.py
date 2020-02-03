@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
-BASKET_SIZE = 50
+BASKET_SIZE = 20
 
 PARTIAL_THRESHOLD = 20
 

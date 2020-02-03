@@ -35,6 +35,7 @@ def Schedule(existing_order_grp_profit,
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
     osID = 0
+    dumID = 0
 
     @timefn
     def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
@@ -76,11 +77,11 @@ def Schedule(existing_order_grp_profit,
             grouped_partial_orders = group_orders_n(remaining_orders, BASKET_SIZE)
 
         # Make dump orders
+        nonlocal dumID
         all_dumps = []
         for po_group in grouped_partial_orders:
             group_by_address = group_same_address(po_group).values()
             for dumped_order in group_by_address:
-                dumID = len(all_dumps)
                 all_dumps.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
 
         grouped_dumped_orders = group_orders_n(all_dumps, BASKET_SIZE)
@@ -321,7 +322,8 @@ class ControlCenter:
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
              'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
              'action': 'loading',
-             'next_orderset': None})
+             'next_orderset': None,
+             'log_time': None})
 
         self.robot_status_log = []
 
@@ -513,7 +515,8 @@ class ControlCenter:
                                  'operating_orderset': {'item': {'r': 0, 'g': 0, 'b': 0}, 'id': 99999999},
                                  'current_basket': {'r': 0, 'g': 0, 'b': 0},
                                  'action': 'loading',
-                                 'next_orderset': None})
+                                 'next_orderset': None,
+                                 'log_time': None})
 
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
