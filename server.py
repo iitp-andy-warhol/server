@@ -150,9 +150,15 @@ def Schedule(existing_order_grp_profit,
                 next_orderset_idx.value = -1
                 next_orderset_idx_lock.release()
 
-            scheduling_required_flag_lock.acquire()
-            scheduling_required_flag.value = False
-            scheduling_required_flag_lock.release()
+                scheduling_required_flag_lock.acquire()
+                scheduling_required_flag.value = False
+                scheduling_required_flag_lock.release()
+
+                time.sleep(1)
+            else:
+                scheduling_required_flag_lock.acquire()
+                scheduling_required_flag.value = False
+                scheduling_required_flag_lock.release()
         time.sleep(1)
 
 
@@ -356,8 +362,8 @@ class ControlCenter:
 
         while True:
 
-            # 5초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
-            # 120초동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
+            # 2초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
+            # 300초 동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
             if time.time() - getdb_time > 2 or self.just_get_db_flag:
                 self.just_get_db_flag_lock.acquire()
                 self.just_get_db_flag = False
@@ -391,8 +397,14 @@ class ControlCenter:
 
                                 self.scheduling_required_flag_lock.acquire()
                                 rs = copy.deepcopy(self.robot_status)
-                                self.schedule_direction.value = rs['direction']
+
                                 self.schedule_current_address.value = rs['operating_order']['address']
+                                cur_path = rs['operating_orderset'][path]
+                                if cur_path[cur_path.find(self.schedule_current_address.value) - 1] == '9':
+                                    self.schedule_direction.value = rs['direction'] * (-1)
+                                else:
+                                    self.schedule_direction.value = rs['direction']
+
                                 cur_basket = rs['current_basket']
                                 fut_basket = {
                                     'r': cur_basket['r'] - rs['operating_order']['item']['r'],
