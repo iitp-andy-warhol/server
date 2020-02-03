@@ -408,7 +408,9 @@ class ControlCenter:
                                         self.schedule_direction.value = rs['direction']
 
                                 cur_basket = rs['current_basket']
-
+                                print('Action ^^^^^^^^^^^^^^^^', rs['action'])
+                                print('cur_basket^^^^^^^^^^^^^^^^',cur_basket)
+                                print('rs의 배스킷 ^^^^^^^^^^^^^^^^',rs['operating_order']['item'])
                                 fut_basket = {
                                     'r': cur_basket['r'] - rs['operating_order']['item']['r'],
                                     'g': cur_basket['g'] - rs['operating_order']['item']['g'],
@@ -418,8 +420,9 @@ class ControlCenter:
                                     fut_basket['r'] += rs['operating_orderset']['item']['r']
                                     fut_basket['g'] += rs['operating_orderset']['item']['g']
                                     fut_basket['b'] += rs['operating_orderset']['item']['b']
-
+                                print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
                                 self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
+                                print('self.schedule_current_basket^^^^^^^^^^^^',self.schedule_current_basket)
 
                                 self.scheduling_required_flag.value = True
 
