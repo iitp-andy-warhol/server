@@ -422,7 +422,7 @@ class ControlCenter:
                                     fut_basket['b'] += rs['operating_orderset']['item']['b']
                                 print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
                                 self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
-                                print('self.schedule_current_basket^^^^^^^^^^^^',self.schedule_current_basket)
+                                print('self.schedule_current_basket^^^^^^^^^^^^',self.schedule_current_basket[0])
 
                                 self.scheduling_required_flag.value = True
 
@@ -579,6 +579,9 @@ class ControlCenter:
                 if self.loading_complete_flag:
                     item = self.robot_status['operating_orderset']['item']
                     self.inventory_lock.acquire()
+                    self.inventory['r'] += self.robot_status['current_basket']['r']
+                    self.inventory['g'] += self.robot_status['current_basket']['g']
+                    self.inventory['b'] += self.robot_status['current_basket']['b']
                     self.inventory['r'] -= item['r']
                     self.inventory['g'] -= item['g']
                     self.inventory['b'] -= item['b']
@@ -643,7 +646,7 @@ class ControlCenter:
 
         def get_robot_status(sock):
             while True:
-                data = sock.recv(32768) #2^13 bit
+                data = sock.recv(16384) #2^13 bit
                 data = pickle.loads(data)
 
                 # self.robot_status_log.append(self.robot_status)

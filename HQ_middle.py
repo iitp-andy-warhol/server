@@ -21,7 +21,7 @@ def send_robot_status(server, client):
         action = raw_status['action']
 
         robot_status = rs.makeRobotStatus(direction, current_address, action, current_basket, operating_orderset,
-                                       operating_order, next_orderset)
+                                          operating_order, next_orderset)
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
         server.sendall(sendData)
@@ -195,7 +195,7 @@ clientSock.connect((server_ip, server_port))
 print('접속 완료')
 
 # listen to client
-middle_ip = '128.237.218.91'
+middle_ip = 'localhost' #'128.237.218.91'
 middle_port = 8090
 
 middleSock = socket(AF_INET, SOCK_STREAM)
