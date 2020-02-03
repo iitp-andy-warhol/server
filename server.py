@@ -399,18 +399,25 @@ class ControlCenter:
                                 rs = copy.deepcopy(self.robot_status)
 
                                 self.schedule_current_address.value = rs['operating_order']['address']
-                                cur_path = rs['operating_orderset'][path]
-                                if cur_path[cur_path.find(self.schedule_current_address.value) - 1] == '9':
-                                    self.schedule_direction.value = rs['direction'] * (-1)
-                                else:
-                                    self.schedule_direction.value = rs['direction']
+                                cur_path = rs['operating_orderset']['path']
+                                if cur_path is not None:
+                                    if cur_path[cur_path.find(self.schedule_current_address.value) - 1] == '9':
+                                        self.schedule_direction.value = rs['direction'] * (-1)
+                                    else:
+                                        self.schedule_direction.value = rs['direction']
 
                                 cur_basket = rs['current_basket']
+
                                 fut_basket = {
                                     'r': cur_basket['r'] - rs['operating_order']['item']['r'],
                                     'g': cur_basket['g'] - rs['operating_order']['item']['g'],
                                     'b': cur_basket['b'] - rs['operating_order']['item']['b']
                                 }
+                                if rs['action'] == 'loading':
+                                    fut_basket['r'] += rs['operating_orderset']['item']['r']
+                                    fut_basket['g'] += rs['operating_orderset']['item']['g']
+                                    fut_basket['b'] += rs['operating_orderset']['item']['b']
+
                                 self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
 
                                 self.scheduling_required_flag.value = True
