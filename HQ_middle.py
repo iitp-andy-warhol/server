@@ -24,7 +24,7 @@ def send_robot_status(server, client):
                                        operating_order, next_orderset)
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
-        server.send(sendData)
+        server.sendall(sendData)
         print("status send time: ", time.strftime('%c', time.localtime(time.time())))
 
 
