@@ -399,11 +399,14 @@ class ControlCenter:
                                 rs = copy.deepcopy(self.robot_status)
 
                                 self.schedule_current_address.value = rs['operating_order']['address']
-                                cur_path = rs['operating_orderset'][path]
-                                if cur_path[cur_path.find(self.schedule_current_address.value) - 1] == '9':
-                                    self.schedule_direction.value = rs['direction'] * (-1)
-                                else:
-                                    self.schedule_direction.value = rs['direction']
+                                cur_path = str(rs['operating_orderset']["path"])
+                                self.schedule_direction.value = rs['direction']
+                                print('curpath출력: ',cur_path)
+                                if cur_path is not None:
+                                    if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9':
+                                        self.schedule_direction.value = rs['direction'] * (-1)
+                                    else:
+                                        self.schedule_direction.value = rs['direction']
 
                                 cur_basket = rs['current_basket']
                                 fut_basket = {
