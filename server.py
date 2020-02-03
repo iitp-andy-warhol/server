@@ -148,10 +148,16 @@ def Schedule(existing_order_grp_profit,
                 next_orderset_idx.value = -1
                 next_orderset_idx_lock.release()
 
-            scheduling_required_flag_lock.acquire()
-            scheduling_required_flag.value = False
-            scheduling_required_flag_lock.release()
-        time.sleep(5)
+                scheduling_required_flag_lock.acquire()
+                scheduling_required_flag.value = False
+                scheduling_required_flag_lock.release()
+
+                time.sleep(1)
+            else:
+                scheduling_required_flag_lock.acquire()
+                scheduling_required_flag.value = False
+                scheduling_required_flag_lock.release()
+        time.sleep(1)
 
 
 def getdb(cursor, pending_pdf_colname):
@@ -354,9 +360,9 @@ class ControlCenter:
 
         while True:
 
-            # 5초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
-            # 120초동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
-            if time.time() - getdb_time > 5 or self.just_get_db_flag:
+            # 2초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
+            # 300초 동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
+            if time.time() - getdb_time > 2 or self.just_get_db_flag:
                 self.just_get_db_flag_lock.acquire()
                 self.just_get_db_flag = False
                 self.just_get_db_flag_lock.release()
@@ -365,7 +371,7 @@ class ControlCenter:
                 cursor = cnx.cursor()
                 cursor.execute(f"USE {dbname};")
 
-                if time.time() - dbup_time > 120:
+                if time.time() - dbup_time > 300:
 
                     self.pending_df_lock.acquire()
                     self.pending_df.df = getdb(cursor, self.pending_pdf_colname)
@@ -389,14 +395,29 @@ class ControlCenter:
 
                                 self.scheduling_required_flag_lock.acquire()
                                 rs = copy.deepcopy(self.robot_status)
-                                self.schedule_direction.value = rs['direction']
+
                                 self.schedule_current_address.value = rs['operating_order']['address']
+                                cur_path = str(rs['operating_orderset']["path"])
+                                self.schedule_direction.value = rs['direction']
+                                print('curpath출력: ',cur_path)
+                                if cur_path is not None:
+                                    if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9':
+                                        self.schedule_direction.value = rs['direction'] * (-1)
+                                    else:
+                                        self.schedule_direction.value = rs['direction']
+
                                 cur_basket = rs['current_basket']
+
                                 fut_basket = {
                                     'r': cur_basket['r'] - rs['operating_order']['item']['r'],
                                     'g': cur_basket['g'] - rs['operating_order']['item']['g'],
                                     'b': cur_basket['b'] - rs['operating_order']['item']['b']
                                 }
+                                if rs['action'] == 'loading':
+                                    fut_basket['r'] += rs['operating_orderset']['item']['r']
+                                    fut_basket['g'] += rs['operating_orderset']['item']['g']
+                                    fut_basket['b'] += rs['operating_orderset']['item']['b']
+
                                 self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
 
                                 self.scheduling_required_flag.value = True
@@ -701,6 +722,8 @@ class ControlCenter:
             if self.robot_status['operating_order']['id'] == self.unloading_complete_id:
                 pass
             else:
+                while self.scheduling_required_flag.value:
+                    time.sleep(0.05)
                 self.unloading_complete_id = self.robot_status['operating_order']['id']
 
                 self.unloading_complete_flag_lock.acquire()
@@ -752,7 +775,7 @@ class ControlCenter:
                       f'fulfill_order_flag:-------------{self.fulfill_order_flag}',
                       f'update_inventory_flag:++++++++++{self.update_inventory_flag}',
                       '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
-                      f'order_grp:----------------------{self.order_grp}',
+                      # f'order_grp:----------------------{self.order_grp}',
                       f'next_orderset_idx.value:++++++++{self.next_orderset_idx.value}',
                       f'next_orderset:++++++++++++++++++{self.next_orderset}',
                       f'inventory:----------------------{self.inventory}',
