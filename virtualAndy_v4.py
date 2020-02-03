@@ -278,12 +278,15 @@ class Address:
                         stop = False
                         get_drive = True
                         good_to_go_loading = False
+                        print("Loading Confirm!!!")
                 else:
                     action = "unloading"
                     if good_to_go_unloading:
+                        print("Loading Confirm!!!")
                         stop = False
                         get_drive = True
                         good_to_go_unloading = False
+                        print("Unloading Confirm!!!")
 
 
 
@@ -324,22 +327,18 @@ current_path = None
 while True:
 
     # command handler
-    if command['path'] == (0,):
-        start = False
+    path_id = command['path_id']
+    if command['path'] is not None:  # and path_id != current_path_id:
+        next_path = command['path']
+        # current_path_id = path_id
 
-    else:  # action == 'unloading' or receive_command_flag: and action != "M-mode":
-        # receive_command_flag = False
-        path_id = command['path_id']
-        if command['path'] is not None:  # and path_id != current_path_id:
-            next_path = command['path']
+    if command['message'] == 'loading_complete':
+        good_to_go_loading = True
+        command['message'] = None
 
-        if command['message'] == 'loading_complete':
-            good_to_go_loading = True
-            command['message'] = None
-
-        if command['message'] == 'unloading_complete':
-            good_to_go_unloading = True
-            command['message'] = None
+    if command['message'] == 'unloading_complete':
+        good_to_go_unloading = True
+        command['message'] = None
 
     if mmode_flag:
         stop = True
@@ -378,7 +377,6 @@ while True:
         address = 0
     elif car.pos() == loc_st1:
         address = 1
-        start = False
     elif car.pos() == loc_st2:
         address = 2
     elif car.pos() == loc_st3:
@@ -389,7 +387,6 @@ while True:
         address = 5
     elif car.pos() == loc_st6:
         address = 6
-        start = False
     else:
         address = 999
 
