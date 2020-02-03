@@ -303,8 +303,9 @@ get_drive = True
 ccw = True
 mmode_flag = False
 stop = True
-good_to_go_loading = False
-good_to_go_unloading = False
+global good_to_go_loading, good_to_go_unloading
+# good_to_go_loading = False
+# good_to_go_unloading = False
 
 current_path_id = None
 current_path = None
