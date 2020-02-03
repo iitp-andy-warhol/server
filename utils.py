@@ -125,5 +125,5 @@ def beepsound(type):
 
 
 if __name__ == "__main__":
-    p = make_short_path(start=99999, end=3, direction=-1)
+    p = make_path(current_address=0, order_address=[6], direction=-1)
     print(p)

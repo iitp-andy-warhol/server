@@ -1,11 +1,9 @@
-import functools
 import multiprocessing as mp
 import pickle
 import threading as th
 import time
 from socket import *
 
-import numpy as np
 import pandas as pd
 
 import mysql.connector
