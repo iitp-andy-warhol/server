@@ -111,6 +111,18 @@ def sum_item(items):
 
     return items['r']+items['g']+items['b']
 
+def beepsound(type):
+    """
+    워커 알림음 함수
+    :param string type: 'loading' or 'unloading'
+    :return:
+    """
+    if type == 'loading':
+        pass
+    elif type == 'unloading':
+        pass
+
+
 
 if __name__ == "__main__":
     p = make_short_path(start=99999, end=3, direction=-1)
