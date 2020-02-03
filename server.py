@@ -153,7 +153,7 @@ def Schedule(existing_order_grp_profit,
             scheduling_required_flag_lock.acquire()
             scheduling_required_flag.value = False
             scheduling_required_flag_lock.release()
-        time.sleep(5)
+        time.sleep(1)
 
 
 def getdb(cursor, pending_pdf_colname):
@@ -358,7 +358,7 @@ class ControlCenter:
 
             # 5초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
             # 120초동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
-            if time.time() - getdb_time > 5 or self.just_get_db_flag:
+            if time.time() - getdb_time > 2 or self.just_get_db_flag:
                 self.just_get_db_flag_lock.acquire()
                 self.just_get_db_flag = False
                 self.just_get_db_flag_lock.release()
@@ -367,7 +367,7 @@ class ControlCenter:
                 cursor = cnx.cursor()
                 cursor.execute(f"USE {dbname};")
 
-                if time.time() - dbup_time > 120:
+                if time.time() - dbup_time > 300:
 
                     self.pending_df_lock.acquire()
                     self.pending_df.df = getdb(cursor, self.pending_pdf_colname)
@@ -756,7 +756,7 @@ class ControlCenter:
                       f'fulfill_order_flag:-------------{self.fulfill_order_flag}',
                       f'update_inventory_flag:++++++++++{self.update_inventory_flag}',
                       '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
-                      f'order_grp:----------------------{self.order_grp}',
+                      # f'order_grp:----------------------{self.order_grp}',
                       f'next_orderset_idx.value:++++++++{self.next_orderset_idx.value}',
                       f'next_orderset:++++++++++++++++++{self.next_orderset}',
                       f'inventory:----------------------{self.inventory}',
