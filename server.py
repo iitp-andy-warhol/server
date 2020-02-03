@@ -83,6 +83,7 @@ def Schedule(existing_order_grp_profit,
             group_by_address = group_same_address(po_group).values()
             for dumped_order in group_by_address:
                 all_dumps.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
+                dumID += 1
 
         grouped_dumped_orders = group_orders_n(all_dumps, BASKET_SIZE)
 
@@ -94,6 +95,7 @@ def Schedule(existing_order_grp_profit,
             for i, dumped_order in enumerate(group_by_address, 1):
                 dumID = len(all_dumps) + i
                 this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
+                dumID += 1
             grouped_dumped_orders.insert(0, this_dump)
 
         # Make order sets
@@ -124,6 +126,7 @@ def Schedule(existing_order_grp_profit,
                 'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
                 'operating_order': {'id':operating_dump_id.value}
             }
+            print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
             print('11111111111111111111111111111111111111111111111111111111111111111')
