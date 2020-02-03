@@ -32,6 +32,7 @@ def receive_robot_command(server, client):
     global command, massage, operating_orderset, operating_order, operating_order_idx, operating_order_idx_lock, next_orderset
     global need_after_loading_job_flag, need_after_loading_job_flag_lock, need_after_unloading_job_flag, need_after_unloading_job_flag_lock
     global current_basket, action, next_orderset
+    wait_flag = False
     current_massage = None
     current_id = None
     orderset_block = False
@@ -142,6 +143,13 @@ def receive_robot_command(server, client):
                 command['path'] = tuple(map(int, operating_orderset['path']))
             command['path_id'] = operating_orderset['id']
             command['message'] = massage['massage']
+            if command['message'] == 'loading_complete' or command['message'] == 'unloading_complete':
+                if action == "loading" or action == "unloading":
+                    wait_flag = True
+        if action != "loading" and action != "unloading":
+            wait_flag = False
+        if wait_flag and command['message'] == None:
+            continue
 
         sendData = pickle.dumps(command, protocol=3)
         client.send(sendData)
@@ -187,7 +195,7 @@ clientSock.connect((server_ip, server_port))
 print('접속 완료')
 
 # listen to client
-middle_ip = 'localhost'
+middle_ip = '128.237.218.91'
 middle_port = 8090
 
 middleSock = socket(AF_INET, SOCK_STREAM)
