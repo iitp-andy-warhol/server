@@ -124,6 +124,7 @@ def Schedule(existing_order_grp_profit,
                 'operating_order': {'id':operating_dump_id.value}
             }
             print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
+            print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
             print('11111111111111111111111111111111111111111111111111111111111111111')
