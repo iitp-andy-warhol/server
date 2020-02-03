@@ -703,6 +703,8 @@ class ControlCenter:
             if self.robot_status['operating_order']['id'] == self.unloading_complete_id:
                 pass
             else:
+                while self.scheduling_required_flag.value:
+                    time.sleep(0.05)
                 self.unloading_complete_id = self.robot_status['operating_order']['id']
 
                 self.unloading_complete_flag_lock.acquire()
