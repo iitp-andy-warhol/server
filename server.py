@@ -44,7 +44,6 @@ def Schedule(existing_order_grp_profit,
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        # print("!!"*100)
         print(rs['operating_order']['id'])
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         at_loading_zone = rs['current_address'] == 0
@@ -95,16 +94,17 @@ def Schedule(existing_order_grp_profit,
                 dumID += 1
             grouped_dumped_orders.insert(0, this_dump)
 
-        # Make order sets
-        all_ordersets = []
         nonlocal osID
-        for do_group in grouped_dumped_orders:
-            # TODO : use robot status information to make path
+        # Make order sets
+        all_ordersets = [od.makeOrderSet(direction=rs['direction'], current_address=rs['current_address'],
+                                         ordersetid=osID, DumpedOrderList=grouped_dumped_orders[0])]
+        for do_group in grouped_dumped_orders[1:]:
             # TODO : improve algorithm estimating profit
-            os = od.makeOrderSet(robot_status=rs, ordersetid=osID,
-                                 DumpedOrderList=do_group)
-            all_ordersets.append(os)
             osID += 1
+            os = od.makeOrderSet(direction=all_ordersets[-1]['last_direction'],
+                                 ordersetid=osID, DumpedOrderList=do_group)
+            all_ordersets.append(os)
+
 
         # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)
@@ -402,7 +402,7 @@ class ControlCenter:
                                 self.schedule_direction.value = rs['direction']
                                 print('curpath출력: ',cur_path)
                                 if cur_path is not None:
-                                    if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9':
+                                    if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs['action'] == 'loading':
                                         self.schedule_direction.value = rs['direction'] * (-1)
                                     else:
                                         self.schedule_direction.value = rs['direction']

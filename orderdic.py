@@ -68,7 +68,7 @@ def makeDumpedOrder(dumpid=9999, PartialOrderList=[], dummy=False):
     return dic
 
 
-def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
+def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=None, profit=0):
     """
     A set of 'DumpedOrder's processed until the robot leaves LZ and then returns to LZ for loading
     :param int ordersetid:
@@ -78,11 +78,9 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
     """
 
     r = g = b = 0
-    current_address = robot_status['current_address']
-    direction = robot_status['direction']
     if DumpedOrderList == []:
         lst = []
-        path, _ = make_short_path(current_address, 0, direction)
+        path, direction = make_short_path(current_address, 0, direction)
         path = path[1:]
     else:
         lst = DumpedOrderList
@@ -91,9 +89,9 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
         b = count_color(DumpedOrderList, 'b')
         address_set = set([do['address'] for do in DumpedOrderList])
         address_set = list([add for add in address_set if add in set(range(1, 7))])
-        path = make_path(direction=direction,
-                         current_address=current_address,
-                         order_address=address_set)
+        path, direction = make_path(direction=direction,
+                                    current_address=current_address,
+                                    order_address=address_set)
         do_dict = {dumped_order['address']: dumped_order for dumped_order in lst}
         lst = [do_dict[address] for address in path if address in set(range(1, 7))]
         profit = sum([do['profit'] for do in lst])
@@ -105,7 +103,8 @@ def makeOrderSet(robot_status, ordersetid=0, DumpedOrderList=None, profit=0):
         'dumporders': lst,
         'path': path_string,
         'profit': profit,
-        'item': {'r': r, 'g': g, 'b': b}
+        'item': {'r': r, 'g': g, 'b': b},
+        'last_direction': direction
     }
     return dic
 
