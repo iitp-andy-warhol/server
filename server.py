@@ -93,7 +93,6 @@ def Schedule(existing_order_grp_profit,
             this_dump = []
             group_by_address = group_same_address(this_os).values()
             for i, dumped_order in enumerate(group_by_address, 1):
-                dumID = len(all_dumps) + i
                 this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
                 dumID += 1
             grouped_dumped_orders.insert(0, this_dump)
