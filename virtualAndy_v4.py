@@ -51,13 +51,6 @@ def change_flag(flag):
     return flag
 
 
-def make_TF(amount, tf):
-    initialize_flags = []
-    for flags in range(amount):
-        initialize_flags += [tf]
-    return initialize_flags
-
-
 def Drive(ccw, car, car_speed, rx, ty, lx, by):
 
     if ccw:
@@ -282,16 +275,10 @@ class Address:
                 else:
                     action = "unloading"
                     if good_to_go_unloading:
-                        print("Loading Confirm!!!")
                         stop = False
                         get_drive = True
                         good_to_go_unloading = False
                         print("Unloading Confirm!!!")
-
-
-
-    # def stop_flag(self):
-    #     self.stop = True
 
 
 address0 = Address(0, False)
