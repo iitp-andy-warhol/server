@@ -17,6 +17,8 @@ def send_robot_status(server, client):
     while True:
         recvData = client.recv(8192)
         raw_status = pickle.loads(recvData)
+        robot_ping = time.time() - raw_status['ping']
+
         if raw_status['action'] == 'dash_file':
             dash_file = raw_status['dash_file']
             error_type = raw_status['error_type']
@@ -31,7 +33,7 @@ def send_robot_status(server, client):
         action = raw_status['action']
 
         robot_status = rs.makeRobotStatus(direction, current_address, action, current_basket, operating_orderset,
-                                          operating_order, next_orderset)
+                                          operating_order, next_orderset, robot_ping)
 
         if action == "M-mode" and not mmode_block:
             now = datetime.now()
@@ -179,7 +181,7 @@ def receive_robot_command(server, client):
             wait_flag = False
         if wait_flag and command['message'] == None:
             continue
-
+        command['ping'] = time.time()
         sendData = pickle.dumps(command, protocol=3)
         client.send(sendData)
 
@@ -211,7 +213,8 @@ massage = {
 command = {
     'message': None,  # loading_complete / unloading_complete / None
     'path': (0, ),  # path / None
-    'path_id': None  # to ignore same path
+    'path_id': None,  # to ignore same path
+    'ping': None
 }
 
 # connect to server
