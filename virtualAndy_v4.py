@@ -272,6 +272,8 @@ class Address:
                         get_drive = True
                         good_to_go_loading = False
                         print("Loading Confirm!!!")
+                    if operating_drive == 0:
+                        get_drive = True
                 else:
                     action = "unloading"
                     if good_to_go_unloading:
@@ -303,6 +305,7 @@ get_drive = True
 ccw = True
 mmode_flag = False
 stop = True
+global good_to_go_loading, good_to_go_unloading
 good_to_go_loading = False
 good_to_go_unloading = False
 
