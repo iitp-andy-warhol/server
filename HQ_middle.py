@@ -4,14 +4,24 @@ import threading as th
 import time
 import numpy as np
 import robotstatus as rs
+from datetime import datetime
 
 
 def send_robot_status(server, client):
     global direction, current_address, action, current_basket, operating_orderset, operating_order, next_orderset
     current_raw_status = None
+    mmode_block = False
+    mmode_start = None
+    error_type = None
+    dash_file = None
     while True:
         recvData = client.recv(8192)
         raw_status = pickle.loads(recvData)
+        if raw_status['action'] == 'dash_file':
+            dash_file = raw_status['dash_file']
+            error_type = raw_status['error_type']
+            continue
+
         if raw_status != current_raw_status:
             print("Raw status: ", raw_status, time.strftime('%c', time.localtime(time.time())))
             current_raw_status = np.copy(raw_status)
@@ -22,6 +32,25 @@ def send_robot_status(server, client):
 
         robot_status = rs.makeRobotStatus(direction, current_address, action, current_basket, operating_orderset,
                                           operating_order, next_orderset)
+
+        if action == "M-mode" and not mmode_block:
+            now = datetime.now()
+            mmode_start = now.strftime("%Y-%m-%d %H:%M:%S")
+            mmode_block = True
+        if action != "M-mode" and mmode_block:
+            now = datetime.now()
+            m_mode = {
+                'table_name': 'm_mode',
+                'start_time': mmode_start,
+                'end_time': now.strftime("%Y-%m-%d %H:%M:%S"),
+                'error_type': error_type,
+                'dash_file': dash_file
+            }
+            mmode_block = False
+            sendData = pickle.dumps(m_mode, protocol=pickle.HIGHEST_PROTOCOL)
+            server.sendall(sendData)
+            print("dash file send time: ", time.strftime('%c', time.localtime(time.time())))
+            continue
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
         server.sendall(sendData)
@@ -195,7 +224,7 @@ clientSock.connect((server_ip, server_port))
 print('접속 완료')
 
 # listen to client
-middle_ip = 'localhost' #'128.237.218.91'
+middle_ip = '128.237.218.91'
 middle_port = 8090
 
 middleSock = socket(AF_INET, SOCK_STREAM)
