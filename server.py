@@ -271,6 +271,14 @@ class ControlCenter:
         self.pending_pdf_colname = ['id', 'address', 'red', 'green', 'blue', 'required_red','required_green','required_blue', 'orderdate']
         self.pending_df = mp.Manager().Namespace()
         self.pending_df.df = pd.DataFrame(columns=self.pending_pdf_colname)
+        self.address_dict = {
+            101: 1,
+            102: 2,
+            103: 3,
+            203: 4,
+            202: 5,
+            201: 6
+        }
         self.pending_df_lock = mp.Lock()
         self.just_get_db_flag = False
         self.just_get_db_flag_lock = th.Lock()
@@ -327,7 +335,7 @@ class ControlCenter:
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0'}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
              'action': 'loading',
              'next_orderset': None,
              'log_time': None})
@@ -354,7 +362,11 @@ class ControlCenter:
         cursor.execute(f"USE {dbname};")
 
         self.pending_df_lock.acquire()
-        self.pending_df.df = getdb(cursor, self.pending_pdf_colname)
+
+        df = getdb(cursor, self.pending_pdf_colname)
+        df['address'] = df['address'].apply(lambda x: self.address_dict[x])
+
+        self.pending_df.df = df
         self.pending_df_lock.release()
         getdb_time = time.time()
         dbup_time = time.time()
@@ -375,13 +387,19 @@ class ControlCenter:
                 if time.time() - dbup_time > 300:
 
                     self.pending_df_lock.acquire()
-                    self.pending_df.df = getdb(cursor, self.pending_pdf_colname)
+
+                    df = getdb(cursor, self.pending_pdf_colname)
+                    df['address'] = df['address'].apply(lambda x: self.address_dict[x])
+
+                    self.pending_df.df = df
                     self.pending_df_lock.release()
 
                     getdb_time = time.time()
 
                 else:
                     pending_df = getdb(cursor, self.pending_pdf_colname)
+                    pending_df['address'] = pending_df['address'].apply(lambda x: self.address_dict[x])
+
                     getdb_time = time.time()
 
                     count = 0
@@ -537,7 +555,7 @@ class ControlCenter:
                                 {'direction': 1, 'current_address': 0,
                                  'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0},
                                                      'orderid': [99999]},
-                                 'operating_orderset': {'item': {'r': 0, 'g': 0, 'b': 0}, 'id': 99999999},
+                                 'operating_orderset': {'item': {'r': 0, 'g': 0, 'b': 0}, 'id': 99999999,'path':'0'},
                                  'current_basket': {'r': 0, 'g': 0, 'b': 0},
                                  'action': 'loading',
                                  'next_orderset': None,
