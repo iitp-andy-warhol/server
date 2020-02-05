@@ -100,12 +100,13 @@ def Schedule(existing_order_grp_profit,
         # Make order sets
         all_ordersets = [od.makeOrderSet(direction=rs['direction'], current_address=rs['current_address'],
                                          ordersetid=osID, DumpedOrderList=grouped_dumped_orders[0])]
+        osID += 1
         for do_group in grouped_dumped_orders[1:]:
             # TODO : improve algorithm estimating profit
-            osID += 1
             os = od.makeOrderSet(direction=all_ordersets[-1]['last_direction'],
                                  ordersetid=osID, DumpedOrderList=do_group)
             all_ordersets.append(os)
+            osID += 1
 
 
         # Make order group

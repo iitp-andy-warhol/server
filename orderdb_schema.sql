@@ -18,6 +18,8 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 -- Schema orderdb
 -- -----------------------------------------------------
  SET NAMES utf8mb4 ;
+ SET SQL_MODE='ALLOW_INVALID_DATES';
+
 -- -----------------------------------------------------
 -- Table `orderdb`.`scheduler`
 -- -----------------------------------------------------
@@ -334,3 +336,4 @@ SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 */
+INSERT INTO scheduler (comment) VALUES ('test');
