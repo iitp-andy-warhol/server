@@ -2,7 +2,8 @@ import numpy as np
 import time
 from datetime import datetime
 import beepy
-import playsound
+import simpleaudio as sa
+
 
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
@@ -125,9 +126,9 @@ def beepsound(type):
         print(beepy.beep(sound=5))
 
     elif type == 'unloading':
-        # print(playsound.playsound('alarm.wav', block=False))
-        pass
-
+        wave_obj = sa.WaveObject.from_wave_file('alarm.wav')
+        play_obj = wave_obj.play()
+        # play_obj.wait_done()  # Wait until sound has finished playing
 
 if __name__ == "__main__":
     p = make_path(current_address=5, order_address=[], direction=-1)
