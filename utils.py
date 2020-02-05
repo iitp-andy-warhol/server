@@ -128,7 +128,7 @@ def beepsound(type):
     elif type == 'unloading':
         wave_obj = sa.WaveObject.from_wave_file('alarm.wav')
         play_obj = wave_obj.play()
-        # play_obj.wait_done()  # Wait until sound has finished playing
+        play_obj.wait_done()  # Wait until sound has finished playing
 
 if __name__ == "__main__":
     p = make_path(current_address=5, order_address=[], direction=-1)
