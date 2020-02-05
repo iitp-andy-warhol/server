@@ -10,7 +10,7 @@ def receive_command(sock):
     global command
     current_command = None
     while True:
-        recvData = sock.recv(1024)
+        recvData = sock.recv(2048)
         command = pickle.loads(recvData)
 
         if current_command != command:

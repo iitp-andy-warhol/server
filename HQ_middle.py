@@ -100,8 +100,8 @@ def receive_robot_command(server, client):
 
                 next_orderset = None
                 # print(3333, next_orderset)
-
-                orderset_block = True
+                if operating_order['address'] != 0:
+                    orderset_block = True
             else:
                 operating_orderset = {'init': 'init', 'id': 99999999,
                                       'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
@@ -185,6 +185,7 @@ def receive_robot_command(server, client):
         if wait_flag and command['message'] == None:
             continue
         command['ping'] = time.time()
+        print("Command: ", command)
         sendData = pickle.dumps(command, protocol=3)
         client.send(sendData)
 

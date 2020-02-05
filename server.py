@@ -131,7 +131,11 @@ def Schedule(existing_order_grp_profit,
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
 
             sc_logger.scheduling['start_time'] = now()
-            sc_logger.scheduling['num_order'] = len(pdf_for_scheduling)
+            if len(pdf_for_scheduling) != 0:
+                sc_logger.scheduling['num_order'] = len(pdf_for_scheduling)
+            else:
+                sc_logger.scheduling['num_order'] = 1
+
             num_item = 0
             for i in range(len(pdf_for_scheduling)):
                 num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
