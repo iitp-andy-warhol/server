@@ -1,6 +1,9 @@
 import numpy as np
 import time
 from datetime import datetime
+import beepy
+import playsound
+
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
 BASKET_SIZE = 20
@@ -100,7 +103,8 @@ def now():
     Get datetime as string like '0000-00-00 00:00:00'
     :return: string
     """
-    return not datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return f"'{now}'"
 
 def sum_item(items):
     """
@@ -118,9 +122,10 @@ def beepsound(type):
     :return:
     """
     if type == 'loading':
-        pass
+        print(beepy.beep(sound=5))
+
     elif type == 'unloading':
-        pass
+        print(playsound.playsound('alarm.wav', block=False))
 
 
 

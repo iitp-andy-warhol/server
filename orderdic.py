@@ -76,7 +76,6 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
     :param str path:
     :param int profit:
     """
-
     r = g = b = 0
     if DumpedOrderList == []:
         lst = []

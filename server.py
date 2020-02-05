@@ -29,9 +29,11 @@ def Schedule(existing_order_grp_profit,
              direction,
              current_address,
              current_basket,
-             operating_dump_id):
+             operating_dump_id,
+             scheduler_id):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
+    sc_logger = Logger(for_scheduler=True, scheduler_id=scheduler_id.value)
     osID = 0
     dumID = 0
 
@@ -127,10 +129,21 @@ def Schedule(existing_order_grp_profit,
             print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+
+            sc_logger.scheduling['start_time'] = now()
+            sc_logger.scheduling['num_order'] = len(pdf_for_scheduling)
+            num_item = 0
+            for i in range(len(pdf_for_scheduling)):
+                num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
+            print('num_item: ', num_item)
+            sc_logger.scheduling['num_item'] = num_item
+
             print('11111111111111111111111111111111111111111111111111111111111111111')
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
-
             print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
+            sc_logger.scheduling['end_time'] = now()
+            sc_logger.insert_log(sc_logger.scheduling)
+
             if new_order_grp is not None:
                 print('3333333333333333333333333333333333333333', new_order_grp)
                 order_grp_new_lock.acquire()
@@ -161,11 +174,12 @@ def Schedule(existing_order_grp_profit,
         time.sleep(1)
 
 
-def getdb(cursor, pending_pdf_colname):
-    query = f"SELECT {', '.join(pending_pdf_colname)} " + "FROM orders WHERE pending = 1"
+def getdb(exp_id, cursor, pending_pdf_colname, address_dict):
+    query = f"SELECT {', '.join(pending_pdf_colname)} " + f"FROM orders WHERE pending = 1 and exp_id = {exp_id}"
     cursor.execute(query)
     pending = cursor.fetchall()
     pending = pd.DataFrame(pending, columns=pending_pdf_colname)
+    pending['address'] = pending['address'].apply(lambda x: address_dict[x])
     return pending
 
 
@@ -178,54 +192,104 @@ def largePrint(text):
           sep='\n')
 
 class Logger:
-    def __init__(self):
+    def __init__(self, for_scheduler=False, scheduler_id=None):
         self.host = 'localhost'
         self.user = 'root'
         self.passwd = 'pass'
         self.dbname = 'orderdb'
 
-        print("START EXPERIMENT")
-        self.experiment = {
-            'table_name': 'experiment',
-            'max_time': input('Please enter max_time        :'),
-            'num_order': input('Please enter num_order       :'),
-            'order_stop_time': input('Please enter order_stop_time :'),
-            'scheduler_id': input('Please enter scheduler_id    :')
-        }
-        self.scheduling = {
-            'table_name': 'scheduling',
-            'scheduler_id': self.experiment['scheduler_id'],
-            'start_time': None,
-            'end_time': None,
-            'num_order': None,
-            'num_item': None
-        }
-        self.departure = {
-            'table_name': 'departure',
-            'depart_time': None,
-            'arrive_time': None,
-            'num_order': None,
-            'num_item': None
-        }
-        self.timestamp_loading = {
-            'table_name': 'timestamp_loading',
-            'num_item': None,
-            'refresh_alert_time': None,
-            'connect_time': None,
-            'confirm_time': None
-        }
-        self.timestamp_unloading = {
-            'table_name': 'timestamp_unloading',
-            'num_item': None,
-            'refresh_alert_time': None,
-            'connect_time': None,
-            'confirm_time': None
-        }
+        if not for_scheduler:
+            print("START EXPERIMENT")
+            self.experiment = {
+                'table_name': 'experiment',
+                'max_time': input('Please enter max_time        :'),
+                'num_order': input('Please enter num_order       :'),
+                'order_stop_time': input('Please enter order_stop_time :'),
+                'scheduler_id': input('Please enter scheduler_id    :')
+            }
+            self.departure = {
+                'table_name': 'departure',
+                'depart_time': None,
+                'arrive_time': None,
+                'num_order': None,
+                'num_item': None,
+                'total_profit': None
+            }
+            self.timestamp_loading = {
+                'table_name': 'timestamp_loading',
+                'num_item': None,
+                'refresh_alert_time': None,
+                'connect_time': None,
+                'confirm_time': None
+            }
+            self.timestamp_unloading = {
+                'table_name': 'timestamp_unloading',
+                'num_item': None,
+                'refresh_alert_time': None,
+                'connect_time': None,
+                'confirm_time': None
+            }
 
-        self.InsertLog(self.experiment)
-        self.exp_id = self.get_exp_id()
 
-        input(f"Press Enter to Start Experiment #{self.exp_id}")
+            self.m_mode_list = []
+
+            # m_mode ={
+            #     'table_name': 'm_mode',
+            #     'start_time': '0000-00-00 00:00:00'
+            #     'end_time': '0000-00-00 00:00:00'
+            #     'error_type': 'blahblah'
+            #     'dash_file': []
+            # }
+
+            self.insert_log(self.experiment, reset=False)
+            self.exp_id = self.get_exp_id()
+
+        elif for_scheduler:
+            self.scheduler_id = scheduler_id
+            self.scheduling = {
+                'table_name': 'scheduling',
+                'scheduler_id': self.scheduler_id,
+                'start_time': None,
+                'end_time': None,
+                'num_order': None,
+                'num_item': None
+            }
+
+    def reset_table(self, table):
+        if table == 'scheduling':
+            self.scheduling = {
+                'table_name': 'scheduling',
+                'scheduler_id': self.scheduler_id,
+                'start_time': None,
+                'end_time': None,
+                'num_order': None,
+                'num_item': None
+            }
+        elif table == 'departure':
+            self.departure = {
+                'table_name': 'departure',
+                'depart_time': None,
+                'arrive_time': None,
+                'num_order': None,
+                'num_item': None,
+                'total_profit': None
+            }
+        elif table == 'timestamp_loading':
+            self.timestamp_loading = {
+                'table_name': 'timestamp_loading',
+                'num_item': None,
+                'refresh_alert_time': None,
+                'connect_time': None,
+                'confirm_time': None
+            }
+        elif table == 'timestamp_unloading':
+            self.timestamp_unloading = {
+                'table_name': 'timestamp_unloading',
+                'num_item': None,
+                'refresh_alert_time': None,
+                'connect_time': None,
+                'confirm_time': None
+            }
 
     def get_exp_id(self):
         cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
@@ -235,7 +299,7 @@ class Logger:
         cursor.execute(query)
         return cursor.fetchall()[0][0]
 
-    def InsertLog(self, table):
+    def insert_log(self, table, reset=True):
         cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
                                       auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
@@ -243,20 +307,32 @@ class Logger:
         tbname = table['table_name']
         col = ''
         val = ''
-        for key in list(table_name.keys())[0:]:
-            col = col + key + ', '
-            val = val + table[key] + ', '
+        for key in list(table.keys())[1:]:
+            col = str(col) + str(key) + ', '
+            val = str(val) + str(table[key]) + ', '
         col = col[:-2]
         val = val[:-2]
 
         query = f"INSERT INTO {tbname} ({col}) VALUES ({val});"
+        print(f'QUERY: {query}')
         cursor.execute(query)
         cnx.commit()
 
-    def EndExperiment(self):
+        if reset:
+            self.reset_table(tbname)
+
+    def end_experiment(self):
         cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
                                       auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
+
+        # M-mode 기록 추가
+        for record in self.m_mode_list:
+            imgs = record.popitem()[1]
+            # imgs 이미지 저장 해야됨!!!!!!!!!!!!!!!!!!!!
+            self.insert_log(record, reset=False)
+
+        # 마지막으로 experiment 테이블 업데이트
         query = f'UPDATE experiment SET end_time = NOW(), num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0) WHERE exp_id = {self.exp_id};'
         cursor.execute(query)
         cnx.commit()
@@ -264,9 +340,14 @@ class Logger:
 
 class ControlCenter:
     def __init__(self):
+        self.logger = Logger()
         with open("banana.txt") as f:
             print('\n', f.read(),'\n')
-        # self.logger = Logger()
+
+        input(f"Press Enter to Start Experiment #{self.logger.exp_id}")
+
+
+        self.scheduler_id = mp.Value('i', int(self.logger.experiment['scheduler_id']))
 
         self.pending_pdf_colname = ['id', 'address', 'red', 'green', 'blue', 'required_red','required_green','required_blue', 'orderdate']
         self.pending_df = mp.Manager().Namespace()
@@ -338,9 +419,10 @@ class ControlCenter:
              'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0'}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
              'action': 'loading',
              'next_orderset': None,
-             'log_time': None})
+             'log_time': None,
+             'ping': None})
 
-        self.robot_status_log = []
+        # self.robot_status_log = []
 
         self.schedule_direction = mp.Value('i', 1)
         self.schedule_current_address = mp.Value('i',0)
@@ -362,11 +444,7 @@ class ControlCenter:
         cursor.execute(f"USE {dbname};")
 
         self.pending_df_lock.acquire()
-
-        df = getdb(cursor, self.pending_pdf_colname)
-        df['address'] = df['address'].apply(lambda x: self.address_dict[x])
-
-        self.pending_df.df = df
+        self.pending_df.df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
         self.pending_df_lock.release()
         getdb_time = time.time()
         dbup_time = time.time()
@@ -387,18 +465,13 @@ class ControlCenter:
                 if time.time() - dbup_time > 300:
 
                     self.pending_df_lock.acquire()
-
-                    df = getdb(cursor, self.pending_pdf_colname)
-                    df['address'] = df['address'].apply(lambda x: self.address_dict[x])
-
-                    self.pending_df.df = df
+                    self.pending_df.df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
                     self.pending_df_lock.release()
 
                     getdb_time = time.time()
 
                 else:
-                    pending_df = getdb(cursor, self.pending_pdf_colname)
-                    pending_df['address'] = pending_df['address'].apply(lambda x: self.address_dict[x])
+                    pending_df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
 
                     getdb_time = time.time()
 
@@ -559,7 +632,7 @@ class ControlCenter:
                                  'current_basket': {'r': 0, 'g': 0, 'b': 0},
                                  'action': 'loading',
                                  'next_orderset': None,
-                                 'log_time': None})
+                                 'log_time': None,'ping': None})
 
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
@@ -663,6 +736,8 @@ class ControlCenter:
                 time.sleep(0.2)
 
         def get_robot_status(sock):
+            did_alert_od_id = 8888
+            did_alert_os_id = 8888
             while True:
                 data = sock.recv(16384) #2^13 bit
                 data = pickle.loads(data)
@@ -672,6 +747,18 @@ class ControlCenter:
 
                 self.got_init_robot_status = True
                 self.schedule_operating_dump_id = data['operating_order']['id']
+
+                # 로딩워커 UI 갱신 알림 및 로깅
+                if data['operating_orderset']['id'] != did_alert_os_id and data['current_address'] == 0:
+                    did_alert_os_id = data['operating_orderset']['id']
+                    beepsound('loading')
+                    self.logger.timestamp_loading['refresh_alert_time'] = now()
+
+                # 언로딩워커 UI 갱신 알림 및 로깅
+                if data['operating_order']['id'] not in [9999, did_alert_od_id] and data['current_address'] != 0:
+                    did_alert_od_id = data['operating_order']['id']
+                    beepsound('unloading')
+                    self.logger.timestamp_unloading['refresh_alert_time'] = now()
 
         port = 8081
 
@@ -701,6 +788,16 @@ class ControlCenter:
         Bootstrap(app)
         app.config['ENV'] = 'development'
 
+        self.loading_check_id = 88888
+        self.loading_complete_id = 88888
+        self.unloading_complete_id = 88888
+        self.unloading_check_id = 88888
+        self.departure_info = {
+            'order_ids': [],
+            'num_item': 0,
+            'total_profit':0
+        }
+
         @app.route('/loading')
         def loadingworker():
             ########################로딩워커 UI에는 실제로 로딩해야 할 아이템이 보여져야한다. 중간에 스케줄이 체인지 돼서
@@ -708,6 +805,20 @@ class ControlCenter:
             # 실제로 로딩해야할 넥스트오더셋의 아이템이 매니저에서 갱신된 경우 소리등의 방식으로 알림을 줘서 워커가 제대로 된
             # 로딩 아이템을 볼 수 있게 해줘야 함.
             items = self.robot_status['operating_orderset']['item']
+
+            if self.robot_status['operating_orderset']['id'] == self.loading_check_id:
+                pass
+            else:
+                self.loading_check_id = self.robot_status['operating_orderset']['id']
+                self.logger.timestamp_loading['connect_time'] = now()
+                self.logger.timestamp_loading['num_item'] = sum_item(items)
+
+                if self.logger.departure['depart_time'] is not None:
+                    self.logger.departure['arrive_time'] = now()
+                    self.logger.departure['num_order'] = len(set(self.departure_info['order_ids']))
+                    self.logger.departure['num_item'] = self.departure_info['num_item']
+                    self.logger.departure['total_profit'] = self.departure_info['total_profit']
+                    self.logger.insert_log(self.logger.departure)
 
             return render_template('loading.html', items=items)
 
@@ -718,6 +829,11 @@ class ControlCenter:
             if self.robot_status['operating_orderset']['id'] == self.loading_complete_id:
                 pass
             else:
+                # log 기록
+                self.logger.timestamp_loading['confirm_time'] = now()
+                self.logger.insert_log(self.logger.timestamp_loading)
+                self.logger.departure['depart_time'] = now()
+
                 self.loading_complete_id = self.robot_status['operating_orderset']['id']
 
                 self.loading_complete_flag_lock.acquire()
@@ -735,6 +851,15 @@ class ControlCenter:
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
+
+            if self.robot_status['operating_order']['id'] == self.unloading_check_id:
+                pass
+            else:
+                self.unloading_check_id = self.robot_status['operating_order']['id']
+                self.logger.timestamp_unloading['connect_time'] = now()
+                self.logger.timestamp_unloading['num_item'] = sum_item(items)
+                self.departure_info['num_item'] += sum_item(items)
+
             return render_template('unloading.html', items=items, order_id=order_id, address=address)
 
         @app.route('/unloading-success')
@@ -749,6 +874,13 @@ class ControlCenter:
             else:
                 while self.scheduling_required_flag.value:
                     time.sleep(0.05)
+
+                    # log 기록
+                self.logger.timestamp_unloading['confirm_time'] = now()
+                self.logger.insert_log(self.logger.timestamp_unloading)
+                self.departure_info['order_ids'] + order_id
+                self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
+
                 self.unloading_complete_id = self.robot_status['operating_order']['id']
 
                 self.unloading_complete_flag_lock.acquire()
@@ -781,13 +913,14 @@ class ControlCenter:
                     'operating_orderset': None,
                     'operating_order': None,
                     'next_orderset': None,
+                    'ping': None,
                     'log_time': None
                 }
             else:
                 robot_status_print = self.robot_status
             with pd.option_context('display.max_rows', None, 'display.max_columns',
                                    None):  # more options can be specified also
-                print(f"##------------------------------------{time.strftime('%c', time.localtime(time.time()))}------------------------------------##",
+                print(f"##------------------------------------EXP_ID: {self.logger.exp_id} / {time.strftime('%c', time.localtime(time.time()))}------------------------------------##",
                       f'pending_df.df: \n{self.pending_df.df}',
                       f'got_init_robot_status:++++++++++{self.got_init_robot_status}',
                       f'got_init_orderset:--------------{self.got_init_orderset}',
@@ -805,7 +938,7 @@ class ControlCenter:
                       f'next_orderset:++++++++++++++++++{self.next_orderset}',
                       f'inventory:----------------------{self.inventory}',
                       '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
-                      f'=============== robot_status ===============',
+                      f"=============== robot_status / ping:{robot_status_print['ping']}===============",
                       f"| log_time: {robot_status_print['log_time']}",
                       f"| diredction: {robot_status_print['direction']}",
                       f"| current_address: {robot_status_print['current_address']}",
@@ -849,6 +982,7 @@ class ControlCenter:
                                  self.schedule_current_address,
                                  self.schedule_current_basket,
                                  self.schedule_operating_dump_id,
+                                 self.scheduler_id,
                                 ))
 
         t_ControlDB.daemon = True

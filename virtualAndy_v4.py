@@ -19,10 +19,12 @@ def receive_command(sock):
 
 
 def send_status(sock):
-    global direction, current_address, action
+    global direction, current_address, action, command
     current_status = None
+    ping = None
     while True:
-        robot_status = makeRobotStatus(direction, current_address, action)
+        ping = command['ping']
+        robot_status = makeRobotStatus(direction, current_address, action, ping)
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
         sock.send(sendData)
@@ -34,11 +36,12 @@ def send_status(sock):
         time.sleep(0.5)
 
 
-def makeRobotStatus(direction, current_address, action):
+def makeRobotStatus(direction, current_address, action, ping):
     dic = {
         'direction': direction,
         'current_address': current_address,
         'action': action,
+        'ping' : ping
     }
     return dic
 
@@ -237,7 +240,8 @@ operating_order = {'address': 0, 'id':99999}
 command = {
     'message': None,  # loading_complete / unloading_complete / None
     'path': (0,),  # path / None
-    'path_id': 9999  # to ignore same path
+    'path_id': 9999,  # to ignore same path
+    'ping': 0
 }
 
 next_path = command['path']
@@ -272,8 +276,8 @@ class Address:
                         get_drive = True
                         good_to_go_loading = False
                         print("Loading Confirm!!!")
-                    if operating_drive == 0:
-                        get_drive = True
+                    # if operating_drive == 0:
+                    #     get_drive = True
                 else:
                     action = "unloading"
                     if good_to_go_unloading:

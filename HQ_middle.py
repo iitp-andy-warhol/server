@@ -7,6 +7,9 @@ import robotstatus as rs
 from datetime import datetime
 
 
+mid_ip = 'localhost'
+
+
 def send_robot_status(server, client):
     global direction, current_address, action, current_basket, operating_orderset, operating_order, next_orderset
     current_raw_status = None
@@ -50,9 +53,9 @@ def send_robot_status(server, client):
             }
             mmode_block = False
             sendData = pickle.dumps(m_mode, protocol=pickle.HIGHEST_PROTOCOL)
-            server.sendall(sendData)
-            print("dash file send time: ", time.strftime('%c', time.localtime(time.time())))
-            continue
+    ##        # server.sendall(sendData)
+   ##        # print("dash file send time: ", time.strftime('%c', time.localtime(time.time())))
+    ##       # continue
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
         server.sendall(sendData)
@@ -214,7 +217,7 @@ command = {
     'message': None,  # loading_complete / unloading_complete / None
     'path': (0, ),  # path / None
     'path_id': None,  # to ignore same path
-    'ping': None
+    'ping': 0
 }
 
 # connect to server
@@ -227,7 +230,7 @@ clientSock.connect((server_ip, server_port))
 print('접속 완료')
 
 # listen to client
-middle_ip = '128.237.218.91'
+middle_ip = mid_ip
 middle_port = 8090
 
 middleSock = socket(AF_INET, SOCK_STREAM)

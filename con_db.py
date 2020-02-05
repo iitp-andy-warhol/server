@@ -3,32 +3,33 @@ import sys
 import pandas as pd
 
 
-action = sys.argv[1]
+exp_id = sys.argv[1]
+action = sys.argv[2]
 
 try:
-    orderid = sys.argv[2]
+    orderid = sys.argv[3]
 except:
     orderid = None
 
-def db(action, orderid):
+def db(exp_id, action, orderid):
     cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=schema)
     cursor = cnx.cursor()
 
     if action in ['d','ㅇ']:
         if orderid is None:
-            query = 'delete from orders where id != 000;'
+            query = f'delete from orders where id != 000 and exp_id = {exp_id};'
             orderid = 'All'
         else:
-            query = f'delete from orders where id ={orderid};'
+            query = f'delete from orders where id ={orderid} and exp_id = {exp_id};'
         cursor.execute(query)
         cnx.commit()
         print(f'id = {orderid} row(s) have been deleted.')
 
     elif action in ['s', 'ㄴ']:
         if orderid is None:
-            query = f"SELECT {', '.join(colname)} " + "FROM orders;"
+            query = f"SELECT {', '.join(colname)} " + f"FROM orders WHERE exp_id = {exp_id};"
         else:
-            query = f"SELECT {', '.join(colname)} " + f"FROM orders WHERE id={orderid};"
+            query = f"SELECT {', '.join(colname)} " + f"FROM orders WHERE id={orderid} and exp_id={exp_id};"
 
         cursor.execute(query)
         pending = cursor.fetchall()
@@ -38,9 +39,9 @@ def db(action, orderid):
     elif action in ['sa', 'ㄴㅁ']:
 
         if orderid is None:
-            query = f"SELECT * FROM orders;"
+            query = f"SELECT * FROM orders WHERE exp_id={exp_id};"
         else:
-            query = f"SELECT * FROM orders WHERE id={orderid};"
+            query = f"SELECT * FROM orders WHERE id={orderid} and exp_id={exp_id};"
 
         cursor.execute(query)
         pending = cursor.fetchall()
@@ -58,4 +59,4 @@ if __name__ == '__main__':
     fulcolname = ['id', 'exp_id', 'customer', 'address', 'orderdate', 'r', 'g', 'b', 'f_r', 'f_g', 'f_b', 'r_r', 'r_g', 'r_b',
                   'pending', 'filldate', 'tot_item']
 
-    db(action, orderid)
+    db(exp_id, action, orderid)
