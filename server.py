@@ -203,14 +203,27 @@ class Logger:
         self.dbname = 'orderdb'
 
         if not for_scheduler:
-            print("START EXPERIMENT")
-            self.experiment = {
-                'table_name': 'experiment',
-                'max_time': input('Please enter max_time        :'),
-                'num_order': input('Please enter num_order       :'),
-                'order_stop_time': input('Please enter order_stop_time :'),
-                'scheduler_id': input('Please enter scheduler_id    :')
-            }
+
+            contin = input('Do you want to start a new experiment? Y/N ')
+            if contin in ['Y', 'y']:
+                print("START A NEW EXPERIMENT")
+
+                self.experiment = {
+                    'table_name': 'experiment',
+                    'max_time': input('Please enter max_time        :'),
+                    'num_order': input('Please enter num_order       :'),
+                    'order_stop_time': input('Please enter order_stop_time :'),
+                    'scheduler_id': input('Please enter scheduler_id    :')
+                }
+                self.insert_log(self.experiment, reset=False)
+                self.exp_id = self.get_exp_id()
+
+            else:
+                self.exp_id = self.get_exp_id()
+                print(f"START THE LAST EXPERIMENT #{self.exp_id}")
+                self.experiment = self.get_last_exp_info()
+
+
             self.departure = {
                 'table_name': 'departure',
                 'depart_time': None,
@@ -234,7 +247,6 @@ class Logger:
                 'confirm_time': None
             }
 
-
             self.m_mode_list = []
 
             # m_mode ={
@@ -244,9 +256,6 @@ class Logger:
             #     'error_type': 'blahblah'
             #     'dash_file': []
             # }
-
-            self.insert_log(self.experiment, reset=False)
-            self.exp_id = self.get_exp_id()
 
         elif for_scheduler:
             self.scheduler_id = scheduler_id
@@ -341,6 +350,23 @@ class Logger:
         cursor.execute(query)
         cnx.commit()
 
+    def get_last_exp_info(self):
+        cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+                                      auth_plugin='mysql_native_password')
+        cursor = cnx.cursor()
+        query = f"SELECT max_time, num_order, order_stop_time, scheduler_id FROM experiment WHERE exp_id={self.exp_id};"
+        cursor.execute(query)
+        info = cursor.fetchall()[0]
+
+        info_dict = {
+            'table_name': 'experiment',
+            'max_time': info[0],
+            'num_order': info[1],
+            'order_stop_time': info[2],
+            'scheduler_id': info[3]
+        }
+        return info_dict
+
 
 class ControlCenter:
     def __init__(self):
@@ -349,7 +375,6 @@ class ControlCenter:
             print('\n', f.read(),'\n')
 
         input(f"Press Enter to Start Experiment #{self.logger.exp_id}")
-
 
         self.scheduler_id = mp.Value('i', int(self.logger.experiment['scheduler_id']))
 
@@ -483,7 +508,7 @@ class ControlCenter:
                     for id_ in pending_df['id']:
                         if id_ not in list(self.pending_df.df['id']):
                             count += 1
-                            if count >= 3:
+                            if count >= 3 or len(pending_df['id'])==1:
                                 self.pending_df_lock.acquire()
                                 self.pending_df.df = pending_df
                                 self.pending_df_lock.release()
@@ -496,7 +521,7 @@ class ControlCenter:
                                 cur_path = str(rs['operating_orderset']["path"])
                                 self.schedule_direction.value = rs['direction']
                                 print('curpath출력: ',cur_path)
-                                if cur_path is not None:
+                                if cur_path is not None and cur_path != '0':
                                     if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs['action'] == 'loading':
                                         self.schedule_direction.value = rs['direction'] * (-1)
                                     else:
@@ -603,7 +628,9 @@ class ControlCenter:
                             self.schedule_changed_flag.value = False
                             self.schedule_changed_flag_lock.release()
 
-                if self.robot_status['operating_order']['id'] == 9999 and self.got_init_orderset:
+                if (self.robot_status['operating_order']['id'] == 9999 or
+                    self.robot_status['operating_orderset']['id']==99999999) and \
+                        self.got_init_orderset:
                     if not did_dummy:
                         did_dummy = True
 
@@ -753,13 +780,14 @@ class ControlCenter:
                 self.schedule_operating_dump_id = data['operating_order']['id']
 
                 # 로딩워커 UI 갱신 알림 및 로깅
-                print( data['operating_orderset']['id'] , did_alert_os_id)
-                if data['operating_orderset']['id'] != did_alert_os_id and data['current_address'] == 0:
+                print('loading log', data['operating_orderset']['id'] , did_alert_os_id, data['current_address'])
+                if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0:
                     did_alert_os_id = data['operating_orderset']['id']
                     beepsound('loading')
                     self.logger.timestamp_loading['refresh_alert_time'] = now()
 
                 # 언로딩워커 UI 갱신 알림 및 로깅
+                print('unloading log', data['operating_order']['id'] , did_alert_od_id, data['current_address'])
                 if data['operating_order']['id'] not in [9999, did_alert_od_id] and data['current_address'] != 0:
                     did_alert_od_id = data['operating_order']['id']
                     beepsound('unloading')
@@ -811,7 +839,7 @@ class ControlCenter:
             # 로딩 아이템을 볼 수 있게 해줘야 함.
             items = self.robot_status['operating_orderset']['item']
 
-            if self.robot_status['operating_orderset']['id'] == self.loading_check_id:
+            if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
                 pass
             else:
                 self.loading_check_id = self.robot_status['operating_orderset']['id']
@@ -831,7 +859,7 @@ class ControlCenter:
         def change_flags_loading():
             # 이거 접속되는 시점 기록되야됨.
 
-            if self.robot_status['operating_orderset']['id'] == self.loading_complete_id:
+            if self.robot_status['operating_orderset']['id'] in [self.loading_complete_id,99999999]:
                 pass
             else:
                 # log 기록
@@ -857,7 +885,7 @@ class ControlCenter:
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
 
-            if self.robot_status['operating_order']['id'] == self.unloading_check_id:
+            if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
                 pass
             else:
                 self.unloading_check_id = self.robot_status['operating_order']['id']
@@ -874,7 +902,7 @@ class ControlCenter:
             address = self.robot_status['operating_order']['address']
 
 
-            if self.robot_status['operating_order']['id'] == self.unloading_complete_id:
+            if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
                 pass
             else:
                 while self.scheduling_required_flag.value:
@@ -938,7 +966,7 @@ class ControlCenter:
                       f'fulfill_order_flag:-------------{self.fulfill_order_flag}',
                       f'update_inventory_flag:++++++++++{self.update_inventory_flag}',
                       '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -',
-                      # f'order_grp:----------------------{self.order_grp}',
+                      f"order_grp:----------------------{self.order_grp}",
                       f'next_orderset_idx.value:++++++++{self.next_orderset_idx.value}',
                       f'next_orderset:++++++++++++++++++{self.next_orderset}',
                       f'inventory:----------------------{self.inventory}',
