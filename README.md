@@ -1,7 +1,7 @@
 # con_db.py 사용법
 python con_db.py [exp_id] [command] [orderid]
 
-DB orders 테이블 조회
+DB orders 테이블 조회 \n
 일부칼럼 조회
 python con_db.py exp_id s
 
