@@ -12,10 +12,10 @@ except:
     orderid = None
 
 def db(exp_id, action, orderid):
-    cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=schema)
+    cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=schema, auth_plugin='mysql_native_password')
     cursor = cnx.cursor()
 
-    if action in ['d','ㅇ']:
+    if action in ['d']:
         if orderid is None:
             query = f'delete from orders where id != 000 and exp_id = {exp_id};'
             orderid = 'All'
@@ -25,7 +25,7 @@ def db(exp_id, action, orderid):
         cnx.commit()
         print(f'id = {orderid} row(s) have been deleted.')
 
-    elif action in ['s', 'ㄴ']:
+    elif action in ['s']:
         if orderid is None:
             query = f"SELECT {', '.join(colname)} " + f"FROM orders WHERE exp_id = {exp_id};"
         else:
@@ -36,7 +36,7 @@ def db(exp_id, action, orderid):
         pending = pd.DataFrame(pending, columns=colname)
         print(pending)
 
-    elif action in ['sa', 'ㄴㅁ']:
+    elif action in ['sa']:
 
         if orderid is None:
             query = f"SELECT * FROM orders WHERE exp_id={exp_id};"

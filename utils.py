@@ -125,8 +125,8 @@ def beepsound(type):
         print(beepy.beep(sound=5))
 
     elif type == 'unloading':
-        print(playsound.playsound('alarm.wav', block=False))
-
+        # print(playsound.playsound('alarm.wav', block=False))
+        pass
 
 
 if __name__ == "__main__":

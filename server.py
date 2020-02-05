@@ -753,6 +753,7 @@ class ControlCenter:
                 self.schedule_operating_dump_id = data['operating_order']['id']
 
                 # 로딩워커 UI 갱신 알림 및 로깅
+                print( data['operating_orderset']['id'] , did_alert_os_id)
                 if data['operating_orderset']['id'] != did_alert_os_id and data['current_address'] == 0:
                     did_alert_os_id = data['operating_orderset']['id']
                     beepsound('loading')
