@@ -39,6 +39,7 @@ def send_status(sock):
             continue
 
         ping = command['ping']
+        
         robot_status = makeRobotStatus(direction, current_address, action, ping)
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
