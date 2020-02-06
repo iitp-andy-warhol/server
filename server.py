@@ -851,7 +851,7 @@ class ControlCenter:
             # 로딩 아이템을 볼 수 있게 해줘야 함.
             items = self.robot_status['operating_orderset']['item']
 
-            if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
+            if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999] or self.robot_status['operating_order']['id']==9999:
                 pass
             else:
                 self.loading_check_id = self.robot_status['operating_orderset']['id']
