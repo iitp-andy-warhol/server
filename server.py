@@ -126,7 +126,11 @@ def Schedule(existing_order_grp_profit,
                 'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
                 'operating_order': {'id':operating_dump_id.value}
             }
-            print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
+
+            for i in range(20):
+                print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
+                time.sleep(0.1)
+
             print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
@@ -545,6 +549,7 @@ class ControlCenter:
                                 self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
                                 print('self.schedule_current_basket^^^^^^^^^^^^',self.schedule_current_basket[0])
 
+                                time.sleep(0.1)
                                 self.scheduling_required_flag.value = True
 
                                 self.scheduling_required_flag_lock.release()
@@ -888,6 +893,8 @@ class ControlCenter:
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
 
+            print("~"*50, self.robot_status['operating_order']['id'])
+
             if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
                 pass
             else:
@@ -895,6 +902,7 @@ class ControlCenter:
                 self.logger.timestamp_unloading['connect_time'] = now()
                 self.logger.timestamp_unloading['num_item'] = sum_item(items)
                 self.departure_info['num_item'] += sum_item(items)
+                time.sleep(0.1)
 
             return render_template('unloading.html', items=items, order_id=order_id, address=address)
 
