@@ -531,7 +531,7 @@ class ControlCenter:
                                 cur_basket = rs['current_basket']
                                 print('Action ^^^^^^^^^^^^^^^^', rs['action'])
                                 print('cur_basket^^^^^^^^^^^^^^^^',cur_basket)
-                                print('rs의 배스킷 ^^^^^^^^^^^^^^^^',rs['operating_order']['item'])
+                                print('operating os ^^^^^^^^^^^^^^^^',rs['operating_order']['item'])
                                 fut_basket = {
                                     'r': cur_basket['r'] - rs['operating_order']['item']['r'],
                                     'g': cur_basket['g'] - rs['operating_order']['item']['g'],
@@ -955,7 +955,7 @@ class ControlCenter:
             with pd.option_context('display.max_rows', None, 'display.max_columns',
                                    None):  # more options can be specified also
                 print(f"##------------------------------------EXP_ID: {self.logger.exp_id} / {time.strftime('%c', time.localtime(time.time()))}------------------------------------##",
-                      f'pending_df.df: \n{self.pending_df.df}',
+                      # f'pending_df.df: \n{self.pending_df.df}',
                       f'got_init_robot_status:++++++++++{self.got_init_robot_status}',
                       f'got_init_orderset:--------------{self.got_init_orderset}',
                       f'scheduling_required_flag.value:-{self.scheduling_required_flag.value}',
