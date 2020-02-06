@@ -782,7 +782,7 @@ class ControlCenter:
 
                 # 로딩워커 UI 갱신 알림 및 로깅
                 print('loading log', data['operating_orderset']['id'] , did_alert_os_id, data['current_address'])
-                if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0:
+                if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0 and self.robot_status['operating_order']['id']!=9999:
                     did_alert_os_id = data['operating_orderset']['id']
 
                     self.logger.timestamp_loading['refresh_alert_time'] = now()
@@ -842,7 +842,7 @@ class ControlCenter:
             # 로딩 아이템을 볼 수 있게 해줘야 함.
             items = self.robot_status['operating_orderset']['item']
 
-            if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999] or self.robot_status['operating_order']['id']==9999:
+            if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
                 pass
             else:
                 self.loading_check_id = self.robot_status['operating_orderset']['id']
