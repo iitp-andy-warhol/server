@@ -50,6 +50,10 @@ def Schedule(existing_order_grp_profit,
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         at_loading_zone = rs['current_address'] == 0
         current_basket = rs['current_basket']
+        print("*" * 60)
+        print("BASKET INSIDE SCHEDULER")
+        print(current_basket)
+        print("*"*60)
 
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
         # Update order profit
