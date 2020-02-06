@@ -45,4 +45,4 @@ function post() {
 
 setInterval(() => {
     post();
-}, 1000);
+},  Math.ceil(Math.random()) * 30000);

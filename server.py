@@ -784,15 +784,17 @@ class ControlCenter:
                 print('loading log', data['operating_orderset']['id'] , did_alert_os_id, data['current_address'])
                 if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0:
                     did_alert_os_id = data['operating_orderset']['id']
-                    beepsound('loading')
+
                     self.logger.timestamp_loading['refresh_alert_time'] = now()
+                    beepsound('loading')
 
                 # 언로딩워커 UI 갱신 알림 및 로깅
                 print('unloading log', data['operating_order']['id'] , did_alert_od_id, data['current_address'])
                 if data['operating_order']['id'] not in [9999, did_alert_od_id] and data['current_address'] != 0:
                     did_alert_od_id = data['operating_order']['id']
-                    beepsound('unloading')
+
                     self.logger.timestamp_unloading['refresh_alert_time'] = now()
+                    beepsound('unloading')
 
         port = 8081
 
