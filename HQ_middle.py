@@ -16,16 +16,17 @@ def send_robot_status(server, client):
     mmode_block = False
     mmode_start = None
     error_type = None
-    dash_file = None
+    dash_file_name = None
     while True:
         recvData = client.recv(8192)
         raw_status = pickle.loads(recvData)
-        robot_ping = time.time() - raw_status['ping']
 
         if raw_status['action'] == 'dash_file':
-            dash_file = raw_status['dash_file']
+            dash_file_name = raw_status['dash_file_name']
             error_type = raw_status['error_type']
             continue
+
+        robot_ping = time.time() - raw_status['ping']
 
         if raw_status != current_raw_status:
             print("Raw status: ", raw_status, time.strftime('%c', time.localtime(time.time())))
@@ -49,7 +50,7 @@ def send_robot_status(server, client):
                 'start_time': mmode_start,
                 'end_time': now.strftime("%Y-%m-%d %H:%M:%S"),
                 'error_type': error_type,
-                'dash_file': dash_file
+                'dash_file_name': dash_file_name
             }
             mmode_block = False
             sendData = pickle.dumps(m_mode, protocol=pickle.HIGHEST_PROTOCOL)
