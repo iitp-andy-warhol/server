@@ -169,7 +169,7 @@ def receive_robot_command(server, client):
         #     operating_order_idx += 1
         #     operating_order_idx_lock.release()
 
-        if operating_orderset is not None:
+        if operating_orderset['id'] is not None:
             if operating_orderset['path'] == None:
                 command['path'] = (0, )
             else:

@@ -367,6 +367,17 @@ class Logger:
         }
         return info_dict
 
+    def pending_logger(self):
+
+        while True:
+            cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+                                          auth_plugin='mysql_native_password')
+            cursor = cnx.cursor()
+            query = f"INSERT INTO pending (num_pending) SELECT count(*) FROM orders WHERE exp_id={self.exp_id} and pending=1;"
+            cursor.execute(query)
+            cnx.commit()
+            time.sleep(5)
+
 
 class ControlCenter:
     def __init__(self):
@@ -404,7 +415,7 @@ class ControlCenter:
         self.existing_order_grp_profit = mp.Value('d', 0.0)
         self.existing_order_grp_profit_lock = mp.Lock()
 
-        self.order_grp_new = mp.Manager().dict({'dict': None, 'ordersets': []})
+        self.order_grp_new = mp.Manager().dict({'dict': None, 'ordersets': [], 'id':None})
         self.order_grp_new_lock = mp.Lock()
 
         self.operating_order_id = mp.Manager().Namespace()
@@ -441,8 +452,9 @@ class ControlCenter:
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
              'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0'}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
+             'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
              'action': 'loading',
-             'next_orderset': None,
+             'next_orderset': {'init': 'init', 'item':  {'r': 0, 'g': 0, 'b': 0}, 'id':99999999, 'path':None, 'dumporders':[]},
              'log_time': None,
              'ping': None})
 
@@ -645,7 +657,7 @@ class ControlCenter:
                             self.next_orderset_idx_lock.release()
 
                             self.order_grp_lock.acquire()
-                            self.order_grp = {'dict': None, 'ordersets': []}
+                            self.order_grp = {'dict': None, 'ordersets': [], 'id':None}
                             self.order_grp_lock.release()
 
                             self.got_init_orderset = False
@@ -654,10 +666,10 @@ class ControlCenter:
                                 {'direction': 1, 'current_address': 0,
                                  'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0},
                                                      'orderid': [99999]},
-                                 'operating_orderset': {'item': {'r': 0, 'g': 0, 'b': 0}, 'id': 99999999,'path':'0'},
+                                 'operating_orderset': {'item': {'r': 0, 'g': 0, 'b': 0}, 'id': 99999999,'path':'0', 'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]},
                                  'current_basket': {'r': 0, 'g': 0, 'b': 0},
                                  'action': 'loading',
-                                 'next_orderset': None,
+                                 'next_orderset': {'init': 'init', 'item':  {'r': 0, 'g': 0, 'b': 0}, 'id':99999999, 'path':None, 'dumporders':[]},
                                  'log_time': None,'ping': None})
 
                             self.just_get_db_flag_lock.acquire()
@@ -683,7 +695,7 @@ class ControlCenter:
                     self.schedule_changed_flag.value = False
                     self.schedule_changed_flag_lock.release()
 
-                if self.robot_status['next_orderset'] is None and self.next_orderset['id'] != self.robot_status['operating_orderset']['id']: # HQ가 넥스트오더셋 안받고 버리는 경우 다시보내주기
+                if self.robot_status['next_orderset']['id'] == 99999999 and self.next_orderset['id'] != self.robot_status['operating_orderset']['id']: # HQ가 넥스트오더셋 안받고 버리는 경우 다시보내주기
                     self.send_next_orderset_flag_lock.acquire()
                     self.send_next_orderset_flag = True
                     self.send_next_orderset_flag_lock.release()
@@ -950,7 +962,7 @@ class ControlCenter:
                       '- - - - - - - - - - - - - - - - System Status - - - - - - - - - - - - - - - -',
                       f'| got_init_robot_status +++++: {self.got_init_robot_status}',
                       f'| got_init_orderset ---------: {self.got_init_orderset}',
-                      f'| scheduling_required_flag ++:  {self.scheduling_required_flag.value}',
+                      f'| scheduling_required_flag ++: {self.scheduling_required_flag.value}',
                       f'| update_order_grp_flag -----: {self.update_order_grp_flag.value}',
                       f'| schedule_changed_flag +++++: {self.schedule_changed_flag.value}',
                       f'| send_next_orderset_flag ---: {self.send_next_orderset_flag}',
@@ -1011,6 +1023,7 @@ class ControlCenter:
         t_Manager = th.Thread(target=self.Manager, args=())
         t_RobotSocket = th.Thread(target=self.RobotSocket, args=())
         t_PrintLog = th.Thread(target=self.Print_info, args=())
+        t_PendingLog = th.Thread(target=self.logger.pending_logger, args=())
         p_Schedule = mp.Process(target=Schedule,
                                 args=(
                                  self.existing_order_grp_profit,
@@ -1037,6 +1050,7 @@ class ControlCenter:
         t_UIServer.daemon = True
         t_Manager.daemon = True
         t_RobotSocket.daemon = True
+        t_PendingLog.daemon = True
         t_PrintLog.daemon = True
         # p_Schedule.daemon = True
 
@@ -1044,6 +1058,7 @@ class ControlCenter:
         t_UIServer.start()
         t_Manager.start()
         t_RobotSocket.start()
+        t_PendingLog.start()
         t_PrintLog.start()
         p_Schedule.start()
 
