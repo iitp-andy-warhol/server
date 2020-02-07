@@ -82,10 +82,9 @@ def receive_robot_command(server, client):
             if massage['orderset']['id'] != current_id:
                 next_orderset = massage['orderset']
                 current_id = massage['orderset']['id']
-            # print(1111, next_orderset)
 
         if action == 'loading' and (operating_order['id'] == 99999 or operating_order['id'] == 9999):
-            if next_orderset is not None:
+            if next_orderset['id'] is not None:
                 operating_orderset = next_orderset
 
                 operating_order_idx_lock.acquire()
@@ -98,7 +97,7 @@ def receive_robot_command(server, client):
                 operating_order_idx += 1
                 operating_order_idx_lock.release()
 
-                next_orderset = None
+                next_orderset = {'id': None, 'path': None, 'item': None}
                 # print(3333, next_orderset)
                 if operating_order['address'] != 0:
                     orderset_block = True
@@ -118,7 +117,7 @@ def receive_robot_command(server, client):
             # print(4444, next_orderset)
 
         if action == 'unloading' and massage['massage'] == 'unloading_complete':
-            if next_orderset is None:
+            if next_orderset['id'] is None:
                 # update basket
                 item = operating_order['item']
                 current_basket['r'] -= item['r']
@@ -150,7 +149,7 @@ def receive_robot_command(server, client):
                 operating_order_idx += 1
                 operating_order_idx_lock.release()
 
-                next_orderset = None
+                next_orderset = {'id': None, 'path': None, 'item': None}
                 # print(2222, next_orderset)
 
         if massage['massage'] == 'loading_complete':
@@ -170,7 +169,7 @@ def receive_robot_command(server, client):
         #     operating_order_idx += 1
         #     operating_order_idx_lock.release()
 
-        if operating_orderset is not None:
+        if operating_orderset['id'] is not None:
             if operating_orderset['path'] == None:
                 command['path'] = (0, )
             else:
@@ -199,7 +198,7 @@ operating_orderset = {'init': 'init', 'id': 99999999,
                      'path': None, 'profit': None, 'item': {'r': 0, 'g': 0, 'b': 0}}
 
 operating_order = {'address': 0, 'id': 99999, 'item': {'r':0,'g':0,'b':0}, 'orderid':[999999]}
-next_orderset = None
+next_orderset = {'id': None, 'path': None, 'item': None}
 
 operating_order_idx = 0
 operating_order_idx_lock = th.Lock()
