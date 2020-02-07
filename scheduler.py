@@ -338,14 +338,14 @@ def Schedule(existing_order_grp_profit,
             print('num_item: ', num_item)
             sc_logger.scheduling['num_item'] = num_item
 
-            print('11111111111111111111111111111111111111111111111111111111111111111')
+            # print('11111111111111111111111111111111111111111111111111111111111111111')
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
-            print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
+            # print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
             sc_logger.scheduling['end_time'] = now()
             sc_logger.insert_log(sc_logger.scheduling)
 
             if new_order_grp is not None:
-                print('3333333333333333333333333333333333333333', new_order_grp)
+                # print('3333333333333333333333333333333333333333', new_order_grp)
                 order_grp_new_lock.acquire()
                 order_grp_new['dict'] = new_order_grp
                 order_grp_new_lock.release()
