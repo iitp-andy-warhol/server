@@ -249,6 +249,8 @@ class Logger:
 
             self.m_mode_list = []
 
+            self.num_pending = 0
+
             # m_mode ={
             #     'table_name': 'm_mode',
             #     'start_time': '0000-00-00 00:00:00'
@@ -376,6 +378,14 @@ class Logger:
             query = f"INSERT INTO pending (num_pending) SELECT count(*) FROM orders WHERE exp_id={self.exp_id} and pending=1;"
             cursor.execute(query)
             cnx.commit()
+
+            cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+                                          auth_plugin='mysql_native_password')
+            cursor = cnx.cursor()
+            query = f"SELECT num_pending FROM pending WHERE exp_id={self.exp_id} and time_point=(SELECT MAX(time_point) FROM pending);"
+            cursor.execute(query)
+            self.num_pending = cursor.fetchall()
+            print(' num_pending:::::::::::::::::::::: ', self.num_pending)
             time.sleep(5)
 
 
