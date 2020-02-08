@@ -87,7 +87,7 @@ class Logger:
             self.m_mode_list = []
 
             self.num_pending = 0
-            self.num_pending_list = [].append(self.num_pending)
+            self.num_pending_list = [self.num_pending]
 
             # m_mode ={
             #     'table_name': 'm_mode',
@@ -300,8 +300,8 @@ class ControlCenter:
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0'}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
-             'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0', 'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]},
+             'current_basket': {'r': 0, 'g': 0, 'b': 0},
              'action': 'loading',
              'next_orderset': {'init': 'init', 'item':  {'r': 0, 'g': 0, 'b': 0}, 'id':99999999, 'path':None, 'dumporders':[]},
              'log_time': None,
