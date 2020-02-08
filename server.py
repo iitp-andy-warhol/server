@@ -166,7 +166,6 @@ class Logger:
         val = val[:-2]
 
         query = f"INSERT INTO {tbname} ({col}) VALUES ({val});"
-        print(f'QUERY: {query}')
         cursor.execute(query)
         cnx.commit()
 
@@ -221,8 +220,7 @@ class Logger:
             cursor = cnx.cursor()
             query = f"SELECT num_pending FROM pending WHERE exp_id={self.exp_id} and time_point=(SELECT MAX(time_point) FROM pending);"
             cursor.execute(query)
-            self.num_pending = cursor.fetchall()
-            print(' num_pending:::::::::::::::::::::: ', self.num_pending)
+            self.num_pending = cursor.fetchall()[0][0]
             # self.writer.add_scalar('Orders/backlog', self.num_pending, self.step)
             # self.step += 1
             time.sleep(5)
@@ -316,7 +314,7 @@ class ControlCenter:
         self.schedule_current_basket_b = mp.Value('i',0)
         self.schedule_current_basket_lock = mp.Lock()
         self.schedule_operating_dump_id = mp.Value('i', 99999)
-
+        self.did_scheduling_dumpid = mp.Value('i', -1)
 
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
@@ -337,6 +335,7 @@ class ControlCenter:
         self.pending_df_lock.release()
         getdb_time = time.time()
         dbup_time = time.time()
+
 
         while True:
 
@@ -407,12 +406,12 @@ class ControlCenter:
                                 self.schedule_current_basket_g.value = fut_basket['g']
                                 self.schedule_current_basket_b.value = fut_basket['b']
                                 self.schedule_current_basket_lock.release()
-                                # print('self.schedule_current_basket^^^^^^^^^^^^',self.schedule_current_basket[0])
 
-                                self.scheduling_required_flag_lock.acquire()
-                                self.scheduling_required_flag.value = True
-                                self.scheduling_required_flag_lock.release()
-                                break
+                                if self.robot_status['operating_order']['id'] != self.did_scheduling_dumpid.value:
+                                    self.scheduling_required_flag_lock.acquire()
+                                    self.scheduling_required_flag.value = True
+                                    self.scheduling_required_flag_lock.release()
+                                    break
 
             if self.fulfill_order_flag:
                 cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
@@ -495,7 +494,7 @@ class ControlCenter:
 
                 if (self.robot_status['operating_order']['id'] == 9999 or
                     self.robot_status['operating_orderset']['id']==99999999) and \
-                        self.got_init_orderset:
+                        self.got_init_orderset and not self.send_next_orderset_flag:
                     if not did_dummy:
                         did_dummy = True
 
@@ -538,7 +537,8 @@ class ControlCenter:
                     did_dummy = False
 
                 # 중간에 스케줄 바뀔때 오더셋 갱신하기 위함
-                if self.got_init_orderset and self.schedule_changed_flag.value and not self.update_order_grp_flag.value:
+                if self.got_init_orderset and self.schedule_changed_flag.value and not self.update_order_grp_flag.value\
+                        and not self.send_next_orderset_flag:
                     self.next_orderset_idx_lock.acquire()
                     self.next_orderset_idx.value += 1
                     self.next_orderset_idx_lock.release()
@@ -553,7 +553,8 @@ class ControlCenter:
                     self.schedule_changed_flag.value = False
                     self.schedule_changed_flag_lock.release()
 
-                if self.robot_status['next_orderset']['id'] == 99999999 and self.next_orderset['id'] != self.robot_status['operating_orderset']['id']: # HQ가 넥스트오더셋 안받고 버리는 경우 다시보내주기
+                if self.robot_status['next_orderset']['id'] == 99999999 and not self.send_next_orderset_flag and\
+                        self.next_orderset['id'] != self.robot_status['operating_orderset']['id']: # HQ가 넥스트오더셋 안받고 버리는 경우 다시보내주기
                     self.send_next_orderset_flag_lock.acquire()
                     self.send_next_orderset_flag = True
                     self.send_next_orderset_flag_lock.release()
@@ -832,7 +833,7 @@ class ControlCenter:
                       f'| next_orderset_idx ---------: {self.next_orderset_idx.value}',
 
                       '\n- - - - - - - - - - - - - - - Order Status - - - - - - - - - - - - - - - -',
-                      f"| num_pending_order +++++++++: ",
+                      f"| num_pending_order +++++++++: {self.logger.num_pending}",
                       f"| order_grp",
                       f"|  └ id +++++++++++++++++++++: {self.order_grp['id']}",
                       f"|  └ ordersets_id -----------: {[orderset['id'] for orderset in self.order_grp['ordersets']]}",
@@ -905,6 +906,8 @@ class ControlCenter:
                                  self.schedule_current_basket_lock,
                                  self.schedule_operating_dump_id,
                                  self.scheduler_id,
+                                 self.did_scheduling_dumpid,
+
                                 ))
 
         t_ControlDB.daemon = True

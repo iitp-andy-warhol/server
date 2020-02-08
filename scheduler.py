@@ -224,7 +224,8 @@ def Schedule(existing_order_grp_profit,
              current_basket_b,
              schedule_current_basket_lock,
              operating_dump_id,
-             scheduler_id):
+             scheduler_id,
+             did_scheduling_dumpid):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
     sc_logger = Logger(for_scheduler=True, scheduler_id=scheduler_id.value)
@@ -327,12 +328,11 @@ def Schedule(existing_order_grp_profit,
             }
             schedule_current_basket_lock.release()
 
-            print("Operating order ID: ", schedule_info['operating_order']['id'])
+            print("schedule_info: ", schedule_info)
             # for i in range(20):
             #     print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
             #     time.sleep(0.1)
 
-            print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
 
@@ -345,7 +345,6 @@ def Schedule(existing_order_grp_profit,
             num_item = 0
             for i in range(len(pdf_for_scheduling)):
                 num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
-            print('num_item: ', num_item)
             sc_logger.scheduling['num_item'] = num_item
 
             # print('11111111111111111111111111111111111111111111111111111111111111111')
@@ -355,7 +354,8 @@ def Schedule(existing_order_grp_profit,
             sc_logger.insert_log(sc_logger.scheduling)
 
             if new_order_grp is not None:
-                # print('3333333333333333333333333333333333333333', new_order_grp)
+
+                did_scheduling_dumpid.value = schedule_info['operating_order']['id']
                 order_grp_new_lock.acquire()
                 order_grp_new['dict'] = new_order_grp
                 order_grp_new_lock.release()
@@ -417,7 +417,6 @@ def ScheduleByAddress(existing_order_grp_profit,
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        print(rs['operating_order']['id'])
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         at_loading_zone = rs['current_address'] == 0
         current_basket = rs['current_basket']
