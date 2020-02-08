@@ -87,6 +87,7 @@ class Logger:
             self.m_mode_list = []
 
             self.num_pending = 0
+            self.num_pending_list = [].append(self.num_pending)
 
             # m_mode ={
             #     'table_name': 'm_mode',
@@ -221,6 +222,7 @@ class Logger:
             query = f"SELECT num_pending FROM pending WHERE exp_id={self.exp_id} and time_point=(SELECT MAX(time_point) FROM pending);"
             cursor.execute(query)
             self.num_pending = cursor.fetchall()[0][0]
+            self.num_pending_list.append(self.num_pending)
             # self.writer.add_scalar('Orders/backlog', self.num_pending, self.step)
             # self.step += 1
             time.sleep(5)
@@ -646,7 +648,8 @@ class ControlCenter:
 
                 # 로딩워커 UI 갱신 알림 및 로깅
                 # print('loading log', data['operating_orderset']['id'] , did_alert_os_id, data['current_address'])
-                if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0:
+                if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0\
+                        and data['operating_order']['id'] != 9999:
                     did_alert_os_id = data['operating_orderset']['id']
 
                     self.logger.timestamp_loading['refresh_alert_time'] = now()
