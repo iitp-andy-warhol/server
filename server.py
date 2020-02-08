@@ -352,7 +352,7 @@ class ControlCenter:
                 cursor = cnx.cursor()
                 cursor.execute(f"USE {dbname};")
 
-                if time.time() - dbup_time > 30:
+                if self.logger.num_pending > 0 and time.time() - dbup_time > 30:
 
                     self.pending_df_lock.acquire()
                     self.pending_df.df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
