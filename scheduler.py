@@ -61,6 +61,8 @@ def group_orders_once(orders, item_limit):
     return orders, []
 
 def group_orders_for_basket(orders, current_basket):
+    if min(current_basket.values()) < 0 or max(current_basket.values()) == 0:
+        return [], orders
     for i in range(len(orders)):
         if not fit_basket(orders[:i+1], current_basket):
             return orders[:i], orders[i:]
@@ -160,6 +162,8 @@ def update_items(order, item_array):
     return new_order
 
 def fit_basket(order, current_basket):
+    if min(current_basket.values()) < 0 or max(current_basket.values()) == 0:
+        return False
     red = count_color(order, 'r') <= current_basket['r']
     green = count_color(order, 'g') <= current_basket['g']
     blue = count_color(order, 'b') <= current_basket['b']
@@ -215,7 +219,10 @@ def Schedule(existing_order_grp_profit,
              operating_order_id,
              direction,
              current_address,
-             current_basket,
+             current_basket_r,
+             current_basket_g,
+             current_basket_b,
+             schedule_current_basket_lock,
              operating_dump_id,
              scheduler_id):
 
@@ -253,7 +260,7 @@ def Schedule(existing_order_grp_profit,
             grouped_partial_orders = group_orders_n(partials_sorted, BASKET_SIZE)
         else:
             in_basket, not_in_basket = partialize_for_basket(all_partials, current_basket)
-            in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
+            # in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
             this_os, remaining_orders = group_orders_for_basket(in_basket, current_basket)
             remaining_orders += not_in_basket
 
@@ -311,16 +318,19 @@ def Schedule(existing_order_grp_profit,
     while True:
         if scheduling_required_flag.value:
             print('@@@@@@@@@@@ Making new schedule @@@@@@@@@@@')
+            schedule_current_basket_lock.acquire()
             schedule_info = {
                 'direction': direction.value,
                 'current_address': current_address.value,
-                'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
+                'current_basket': {'r': current_basket_r.value, 'g': current_basket_g.value, 'b': current_basket_b.value},
                 'operating_order': {'id':operating_dump_id.value}
             }
+            schedule_current_basket_lock.release()
 
-            for i in range(20):
-                print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
-                time.sleep(0.1)
+            print("Operating order ID: ", schedule_info['operating_order']['id'])
+            # for i in range(20):
+            #     print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
+            #     time.sleep(0.1)
 
             print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
@@ -505,10 +515,10 @@ def ScheduleByAddress(existing_order_grp_profit,
                 'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
                 'operating_order': {'id':operating_dump_id.value}
             }
-
-            for i in range(20):
-                print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
-                time.sleep(0.1)
+            print("Operating order ID: ", schedule_info['operating_order']['id'])
+            # for i in range(20):
+            #     print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
+            #     time.sleep(0.1)
 
             print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()

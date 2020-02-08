@@ -11,7 +11,7 @@ import orderdic as od
 from utils import *
 from scheduler import *
 import copy
-
+# from torch.utils.tensorboard import SummaryWriter
 
 def getdb(exp_id, cursor, pending_pdf_colname, address_dict):
     query = f"SELECT {', '.join(pending_pdf_colname)} " + f"FROM orders WHERE pending = 1 and exp_id = {exp_id}"
@@ -36,6 +36,8 @@ class Logger:
         self.user = 'root'
         self.passwd = 'pass'
         self.dbname = 'orderdb'
+        # self.writer = SummaryWriter()
+        self.step = 0
 
         if not for_scheduler:
 
@@ -221,6 +223,8 @@ class Logger:
             cursor.execute(query)
             self.num_pending = cursor.fetchall()
             print(' num_pending:::::::::::::::::::::: ', self.num_pending)
+            # self.writer.add_scalar('Orders/backlog', self.num_pending, self.step)
+            # self.step += 1
             time.sleep(5)
 
 
@@ -307,8 +311,12 @@ class ControlCenter:
 
         self.schedule_direction = mp.Value('i', 1)
         self.schedule_current_address = mp.Value('i',0)
-        self.schedule_current_basket = mp.Array('i', [0,0,0])
+        self.schedule_current_basket_r = mp.Value('i',0)
+        self.schedule_current_basket_g = mp.Value('i',0)
+        self.schedule_current_basket_b = mp.Value('i',0)
+        self.schedule_current_basket_lock = mp.Lock()
         self.schedule_operating_dump_id = mp.Value('i', 99999)
+
 
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
@@ -366,7 +374,7 @@ class ControlCenter:
                                 self.pending_df_lock.release()
                                 dbup_time = time.time()
 
-                                self.scheduling_required_flag_lock.acquire()
+
                                 rs = copy.deepcopy(self.robot_status)
 
                                 self.schedule_current_address.value = rs['operating_order']['address']
@@ -380,9 +388,9 @@ class ControlCenter:
                                         self.schedule_direction.value = rs['direction']
 
                                 cur_basket = rs['current_basket']
-                                # print('Action ^^^^^^^^^^^^^^^^', rs['action'])
-                                # print('cur_basket^^^^^^^^^^^^^^^^',cur_basket)
-                                # print('rs의 배스킷 ^^^^^^^^^^^^^^^^',rs['operating_order']['item'])
+                                print('Action ^^^^^^^^^^^^^^^^', rs['action'])
+                                print('cur_basket^^^^^^^^^^^^^^^^',cur_basket)
+                                print('operating_order item ^^^^^^^^^^^^^^^^',rs['operating_order']['item'])
                                 fut_basket = {
                                     'r': cur_basket['r'] - rs['operating_order']['item']['r'],
                                     'g': cur_basket['g'] - rs['operating_order']['item']['g'],
@@ -392,12 +400,17 @@ class ControlCenter:
                                     fut_basket['r'] += rs['operating_orderset']['item']['r']
                                     fut_basket['g'] += rs['operating_orderset']['item']['g']
                                     fut_basket['b'] += rs['operating_orderset']['item']['b']
-                                # print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
-                                self.schedule_current_basket = mp.Array('i', [fut_basket['r'],fut_basket['g'],fut_basket['b']])
+                                print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
+                                self.schedule_current_basket_lock.acquire()
+
+                                self.schedule_current_basket_r.value = fut_basket['r']
+                                self.schedule_current_basket_g.value = fut_basket['g']
+                                self.schedule_current_basket_b.value = fut_basket['b']
+                                self.schedule_current_basket_lock.release()
                                 # print('self.schedule_current_basket^^^^^^^^^^^^',self.schedule_current_basket[0])
 
+                                self.scheduling_required_flag_lock.acquire()
                                 self.scheduling_required_flag.value = True
-
                                 self.scheduling_required_flag_lock.release()
                                 break
 
@@ -495,7 +508,7 @@ class ControlCenter:
                             self.send_next_orderset_flag_lock.acquire()
                             self.send_next_orderset_flag = True
                             self.send_next_orderset_flag_lock.release()
-                        else:
+                        elif self.robot_status['current_address']==0:
                             # 오더그룹 다 비웠을 때 초기상태로 돌아오기
                             self.next_orderset_idx_lock.acquire()
                             self.next_orderset_idx.value = -1
@@ -629,7 +642,7 @@ class ControlCenter:
                 self.robot_status = mp.Manager().dict(data)
 
                 self.got_init_robot_status = True
-                self.schedule_operating_dump_id = data['operating_order']['id']
+                self.schedule_operating_dump_id.value = data['operating_order']['id']
 
                 # 로딩워커 UI 갱신 알림 및 로깅
                 # print('loading log', data['operating_orderset']['id'] , did_alert_os_id, data['current_address'])
@@ -869,7 +882,7 @@ class ControlCenter:
         t_RobotSocket = th.Thread(target=self.RobotSocket, args=())
         t_PrintLog = th.Thread(target=self.Print_info, args=())
         t_PendingLog = th.Thread(target=self.logger.pending_logger, args=())
-        p_Schedule = mp.Process(target=ScheduleByAddress,
+        p_Schedule = mp.Process(target=Schedule,
                                 args=(
                                  self.existing_order_grp_profit,
                                  self.order_grp_new,
@@ -886,7 +899,10 @@ class ControlCenter:
                                  self.operating_order_id,
                                  self.schedule_direction,
                                  self.schedule_current_address,
-                                 self.schedule_current_basket,
+                                 self.schedule_current_basket_r,
+                                 self.schedule_current_basket_g,
+                                 self.schedule_current_basket_b,
+                                 self.schedule_current_basket_lock,
                                  self.schedule_operating_dump_id,
                                  self.scheduler_id,
                                 ))
