@@ -87,7 +87,7 @@ class Logger:
             self.m_mode_list = []
 
             self.num_pending = 0
-            self.num_pending_list = [].append(self.num_pending)
+            self.num_pending_list = [self.num_pending]
 
             # m_mode ={
             #     'table_name': 'm_mode',
@@ -300,8 +300,8 @@ class ControlCenter:
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0'}, 'current_basket': {'r': 0, 'g': 0, 'b': 0},
-             'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0','dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]},
+             'current_basket': {'r': 0, 'g': 0, 'b': 0},
              'action': 'loading',
              'next_orderset': {'init': 'init', 'item':  {'r': 0, 'g': 0, 'b': 0}, 'id':99999999, 'path':None, 'dumporders':[]},
              'log_time': None,
@@ -498,18 +498,24 @@ class ControlCenter:
                     self.robot_status['operating_orderset']['id']==99999999) and \
                         self.got_init_orderset and not self.send_next_orderset_flag:
                     if not did_dummy:
-                        did_dummy = True
 
-                        self.next_orderset_idx_lock.acquire()
-                        self.next_orderset_idx.value += 1
-                        self.next_orderset_idx_lock.release()
+                        if self.next_orderset_idx.value <= self.order_grp_len-2:
+                            self.next_orderset_idx_lock.acquire()
+                            self.next_orderset_idx.value += 1
+                            self.next_orderset_idx_lock.release()
 
-                        if self.next_orderset_idx.value <= self.order_grp_len-1:
                             self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
                             self.send_next_orderset_flag_lock.acquire()
                             self.send_next_orderset_flag = True
                             self.send_next_orderset_flag_lock.release()
+
+                            did_dummy = True
                         elif self.robot_status['current_address']==0:
+
+                            self.next_orderset_idx_lock.acquire()
+                            self.next_orderset_idx.value += 1
+                            self.next_orderset_idx_lock.release()
+
                             # 오더그룹 다 비웠을 때 초기상태로 돌아오기
                             self.next_orderset_idx_lock.acquire()
                             self.next_orderset_idx.value = -1
@@ -534,6 +540,7 @@ class ControlCenter:
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
                             self.just_get_db_flag_lock.release()
+                            did_dummy = True
 
                 if self.robot_status['action'] == 'unloading':
                     did_dummy = False
@@ -641,7 +648,8 @@ class ControlCenter:
                 data = sock.recv(16384) #2^13 bit
                 data = pickle.loads(data)
 
-                # self.robot_status_log.append(self.robot_status) \                self.robot_status = mp.Manager().dict(data)
+                # self.robot_status_log.append(self.robot_status)
+                self.robot_status = mp.Manager().dict(data)
 
                 self.got_init_robot_status = True
                 self.schedule_operating_dump_id.value = data['operating_order']['id']
