@@ -639,8 +639,7 @@ class ControlCenter:
                 data = sock.recv(16384) #2^13 bit
                 data = pickle.loads(data)
 
-                # self.robot_status_log.append(self.robot_status)
-                self.robot_status = mp.Manager().dict(data)
+                # self.robot_status_log.append(self.robot_status) \                self.robot_status = mp.Manager().dict(data)
 
                 self.got_init_robot_status = True
                 self.schedule_operating_dump_id.value = data['operating_order']['id']
