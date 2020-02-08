@@ -300,7 +300,7 @@ class ControlCenter:
         self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
-             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0', 'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]},
+             'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0','dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]},
              'current_basket': {'r': 0, 'g': 0, 'b': 0},
              'action': 'loading',
              'next_orderset': {'init': 'init', 'item':  {'r': 0, 'g': 0, 'b': 0}, 'id':99999999, 'path':None, 'dumporders':[]},
@@ -352,13 +352,54 @@ class ControlCenter:
                 cursor = cnx.cursor()
                 cursor.execute(f"USE {dbname};")
 
-                if time.time() - dbup_time > 300:
+                if time.time() - dbup_time > 30:
 
                     self.pending_df_lock.acquire()
                     self.pending_df.df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
                     self.pending_df_lock.release()
 
                     getdb_time = time.time()
+
+                    dbup_time = time.time()
+
+                    rs = copy.deepcopy(self.robot_status)
+
+                    self.schedule_current_address.value = rs['operating_order']['address']
+                    cur_path = str(rs['operating_orderset']["path"])
+                    self.schedule_direction.value = rs['direction']
+                    print('curpath출력: ', cur_path)
+                    if cur_path is not None and cur_path != '0':
+                        if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs[
+                            'action'] == 'loading':
+                            self.schedule_direction.value = rs['direction'] * (-1)
+                        else:
+                            self.schedule_direction.value = rs['direction']
+
+                    cur_basket = rs['current_basket']
+                    print('Action ^^^^^^^^^^^^^^^^', rs['action'])
+                    print('cur_basket^^^^^^^^^^^^^^^^', cur_basket)
+                    print('operating_order item ^^^^^^^^^^^^^^^^', rs['operating_order']['item'])
+                    fut_basket = {
+                        'r': cur_basket['r'] - rs['operating_order']['item']['r'],
+                        'g': cur_basket['g'] - rs['operating_order']['item']['g'],
+                        'b': cur_basket['b'] - rs['operating_order']['item']['b']
+                    }
+                    if rs['action'] == 'loading':
+                        fut_basket['r'] += rs['operating_orderset']['item']['r']
+                        fut_basket['g'] += rs['operating_orderset']['item']['g']
+                        fut_basket['b'] += rs['operating_orderset']['item']['b']
+                    print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
+
+                    self.schedule_current_basket_lock.acquire()
+                    self.schedule_current_basket_r.value = fut_basket['r']
+                    self.schedule_current_basket_g.value = fut_basket['g']
+                    self.schedule_current_basket_b.value = fut_basket['b']
+                    self.schedule_current_basket_lock.release()
+
+                    if self.robot_status['operating_order']['id'] != self.did_scheduling_dumpid.value:
+                        self.scheduling_required_flag_lock.acquire()
+                        self.scheduling_required_flag.value = True
+                        self.scheduling_required_flag_lock.release()
 
                 else:
                     pending_df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
@@ -374,7 +415,6 @@ class ControlCenter:
                                 self.pending_df.df = pending_df
                                 self.pending_df_lock.release()
                                 dbup_time = time.time()
-
 
                                 rs = copy.deepcopy(self.robot_status)
 
@@ -498,18 +538,24 @@ class ControlCenter:
                     self.robot_status['operating_orderset']['id']==99999999) and \
                         self.got_init_orderset and not self.send_next_orderset_flag:
                     if not did_dummy:
-                        did_dummy = True
 
-                        self.next_orderset_idx_lock.acquire()
-                        self.next_orderset_idx.value += 1
-                        self.next_orderset_idx_lock.release()
+                        if self.next_orderset_idx.value <= self.order_grp_len-2:
+                            self.next_orderset_idx_lock.acquire()
+                            self.next_orderset_idx.value += 1
+                            self.next_orderset_idx_lock.release()
 
-                        if self.next_orderset_idx.value <= self.order_grp_len-1:
                             self.next_orderset = self.order_grp['ordersets'][self.next_orderset_idx.value]
                             self.send_next_orderset_flag_lock.acquire()
                             self.send_next_orderset_flag = True
                             self.send_next_orderset_flag_lock.release()
+
+                            did_dummy = True
                         elif self.robot_status['current_address']==0:
+
+                            self.next_orderset_idx_lock.acquire()
+                            self.next_orderset_idx.value += 1
+                            self.next_orderset_idx_lock.release()
+
                             # 오더그룹 다 비웠을 때 초기상태로 돌아오기
                             self.next_orderset_idx_lock.acquire()
                             self.next_orderset_idx.value = -1
@@ -534,6 +580,7 @@ class ControlCenter:
                             self.just_get_db_flag_lock.acquire()
                             self.just_get_db_flag = True
                             self.just_get_db_flag_lock.release()
+                            did_dummy = True
 
                 if self.robot_status['action'] == 'unloading':
                     did_dummy = False
