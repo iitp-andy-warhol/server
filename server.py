@@ -622,7 +622,7 @@ class ControlCenter:
                         self.loading_complete_flag_lock.release()
 
                     # After unloading and fulfilling order db and updating inventory
-                    if self.unloading_complete_flag and not self.fulfill_order_flag and not self.update_inventory_flag:
+                    if self.unloading_complete_flag and not self.fulfill_order_flag and not self.update_inventory_flag and not self.scheduling_required_flag.value:
                         massage['massage'] = 'unloading_complete'
 
                         self.unloading_complete_flag_lock.acquire()
