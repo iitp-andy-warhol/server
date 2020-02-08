@@ -329,12 +329,17 @@ def Schedule(existing_order_grp_profit,
             schedule_current_basket_lock.release()
 
             print("schedule_info: ", schedule_info)
-            # for i in range(20):
-            #     print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
-            #     time.sleep(0.1)
 
             pdf_for_scheduling = pending_df.df.copy()
-            pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+            pdf_for_scheduling = pdf_for_scheduling.iloc[
+                [x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+
+            pdf_for_scheduling['red'] = pdf_for_scheduling['required_red']
+            pdf_for_scheduling['green'] = pdf_for_scheduling['required_green']
+            pdf_for_scheduling['blue'] = pdf_for_scheduling['required_blue']
+            del pdf_for_scheduling['required_red']
+            del pdf_for_scheduling['required_green']
+            del pdf_for_scheduling['required_blue']
 
             sc_logger.scheduling['start_time'] = now()
             if len(pdf_for_scheduling) != 0:
@@ -399,9 +404,13 @@ def ScheduleByAddress(existing_order_grp_profit,
                      operating_order_id,
                      direction,
                      current_address,
-                     current_basket,
+                     current_basket_r,
+                     current_basket_g,
+                     current_basket_b,
+                     schedule_current_basket_lock,
                      operating_dump_id,
-                     scheduler_id):
+                     scheduler_id,
+                     did_scheduling_dumpid):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
     sc_logger = Logger(for_scheduler=True, scheduler_id=scheduler_id.value)
@@ -508,20 +517,31 @@ def ScheduleByAddress(existing_order_grp_profit,
     while True:
         if scheduling_required_flag.value:
             print('@@@@@@@@@@@ Making new schedule @@@@@@@@@@@')
+            schedule_current_basket_lock.acquire()
             schedule_info = {
                 'direction': direction.value,
                 'current_address': current_address.value,
-                'current_basket': {'r': current_basket[0], 'g': current_basket[1], 'b': current_basket[2]},
-                'operating_order': {'id':operating_dump_id.value}
+                'current_basket': {'r': current_basket_r.value, 'g': current_basket_g.value,
+                                   'b': current_basket_b.value},
+                'operating_order': {'id': operating_dump_id.value}
             }
-            print("Operating order ID: ", schedule_info['operating_order']['id'])
+            schedule_current_basket_lock.release()
+
+            print("schedule_info: ", schedule_info)
             # for i in range(20):
             #     print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
             #     time.sleep(0.1)
 
-            print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
-            pdf_for_scheduling = pdf_for_scheduling.iloc[[x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+            pdf_for_scheduling = pdf_for_scheduling.iloc[
+                [x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+
+            pdf_for_scheduling['red'] = pdf_for_scheduling['required_red']
+            pdf_for_scheduling['green'] = pdf_for_scheduling['required_green']
+            pdf_for_scheduling['blue'] = pdf_for_scheduling['required_blue']
+            del pdf_for_scheduling['required_red']
+            del pdf_for_scheduling['required_green']
+            del pdf_for_scheduling['required_blue']
 
             sc_logger.scheduling['start_time'] = now()
             if len(pdf_for_scheduling) != 0:
@@ -532,17 +552,17 @@ def ScheduleByAddress(existing_order_grp_profit,
             num_item = 0
             for i in range(len(pdf_for_scheduling)):
                 num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
-            print('num_item: ', num_item)
             sc_logger.scheduling['num_item'] = num_item
 
-            print('11111111111111111111111111111111111111111111111111111111111111111')
+            # print('11111111111111111111111111111111111111111111111111111111111111111')
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
-            print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
+            # print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
             sc_logger.scheduling['end_time'] = now()
             sc_logger.insert_log(sc_logger.scheduling)
 
             if new_order_grp is not None:
-                print('3333333333333333333333333333333333333333', new_order_grp)
+
+                did_scheduling_dumpid.value = schedule_info['operating_order']['id']
                 order_grp_new_lock.acquire()
                 order_grp_new['dict'] = new_order_grp
                 order_grp_new_lock.release()
