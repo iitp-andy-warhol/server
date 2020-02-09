@@ -241,14 +241,9 @@ def Schedule(existing_order_grp_profit,
         pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
 
         # Convert to partial orders
-        print(rs['operating_order']['id'])
         to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
         at_loading_zone = rs['current_address'] == 0
         current_basket = rs['current_basket']
-        print("*" * 60)
-        print("BASKET INSIDE SCHEDULER")
-        print(current_basket)
-        print("*"*60)
 
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
         # Update order profit
@@ -352,9 +347,7 @@ def Schedule(existing_order_grp_profit,
                 num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
             sc_logger.scheduling['num_item'] = num_item
 
-            # print('11111111111111111111111111111111111111111111111111111111111111111')
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
-            # print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
             sc_logger.scheduling['end_time'] = now()
             sc_logger.insert_log(sc_logger.scheduling)
 
@@ -528,8 +521,6 @@ def ScheduleByAddress(existing_order_grp_profit,
 
             schedule_current_basket_lock.release()
 
-            print("schedule_info: ", schedule_info)
-
             pdf_for_scheduling = pending_df.df.copy()
             pdf_for_scheduling = pdf_for_scheduling.iloc[
                 [x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
@@ -552,9 +543,7 @@ def ScheduleByAddress(existing_order_grp_profit,
                 num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
             sc_logger.scheduling['num_item'] = num_item
 
-            # print('11111111111111111111111111111111111111111111111111111111111111111')
             new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
-            # print('222222222222222222222222222222222222222222222222222222222222222222222', new_order_grp)
             sc_logger.scheduling['end_time'] = now()
             sc_logger.insert_log(sc_logger.scheduling)
 
@@ -616,8 +605,5 @@ if __name__ == "__main__":
     # Sort order sets by profit
     order_group_sorted = sort_order_sets(order_group)
 
-    # print(len(pending_orders))
-    # print(len(pending_partial_orders))
-
-    for order_set in order_group_sorted:
-        print(f"Number of orders in order set: {len(order_set)} | Number of items: {count_items(order_set)} | Profit: {evaluate_order_set(order_set):.3f}")
+    # for order_set in order_group_sorted:
+    #     print(f"Number of orders in order set: {len(order_set)} | Number of items: {count_items(order_set)} | Profit: {evaluate_order_set(order_set):.3f}")
