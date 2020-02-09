@@ -515,9 +515,6 @@ def ScheduleByAddress(existing_order_grp_profit,
                 'operating_order': {'id':operating_dump_id.value}
             }
             print("Operating order ID: ", schedule_info['operating_order']['id'])
-            # for i in range(20):
-            #     print(f"Current basket in Scheduler : {schedule_info['current_basket']}")
-            #     time.sleep(0.1)
 
             print(f"direction in Scheduler      : {schedule_info['direction']}")
             pdf_for_scheduling = pending_df.df.copy()
