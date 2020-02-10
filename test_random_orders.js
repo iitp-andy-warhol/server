@@ -45,4 +45,4 @@ function post() {
 
 setInterval(() => {
     post();
-},  3000);
+},  7000);

@@ -374,12 +374,11 @@ def Schedule(existing_order_grp_profit,
                 scheduling_required_flag.value = False
                 scheduling_required_flag_lock.release()
 
-                time.sleep(1)
             else:
                 scheduling_required_flag_lock.acquire()
                 scheduling_required_flag.value = False
                 scheduling_required_flag_lock.release()
-        time.sleep(1)
+        time.sleep(0.05)
 
 
 def ScheduleByAddress(existing_order_grp_profit,
@@ -574,12 +573,11 @@ def ScheduleByAddress(existing_order_grp_profit,
                 scheduling_required_flag.value = False
                 scheduling_required_flag_lock.release()
 
-                time.sleep(1)
             else:
                 scheduling_required_flag_lock.acquire()
                 scheduling_required_flag.value = False
                 scheduling_required_flag_lock.release()
-        time.sleep(1)
+        time.sleep(0.05)
 
 
 if __name__ == "__main__":

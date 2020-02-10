@@ -5,6 +5,8 @@ import time
 from socket import *
 
 import pandas as pd
+import sys
+from datetime import datetime
 
 import mysql.connector
 import orderdic as od
@@ -85,7 +87,7 @@ class Logger:
             self.m_mode_list = []
 
             self.num_pending = 0
-            self.num_pending_list = [self.num_pending]
+            self.num_pending_list = []
 
             # m_mode ={
             #     'table_name': 'm_mode',
@@ -171,7 +173,14 @@ class Logger:
         if reset:
             self.reset_table(tbname)
 
-    def end_experiment(self):
+    def end_experiment(self, result):
+        # list result contains: end_time, total_time, num_peak, auc
+        num_item = result[0]
+        end_time = result[1]
+        total_time = result[2]
+        num_peak = result[3]
+        auc = result[4]
+
         cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
                                       auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
@@ -183,7 +192,7 @@ class Logger:
         #     self.insert_log(record, reset=False)
 
         # 마지막으로 experiment 테이블 업데이트
-        query = f'UPDATE experiment SET end_time = NOW(), num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0) WHERE exp_id = {self.exp_id};'
+        query = f"UPDATE experiment SET num_item={num_item},end_time='{end_time}', total_time='{total_time}', num_pending_at_peak={num_peak}, AUC={auc}, num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0 and exp_id={self.exp_id}) WHERE exp_id = {self.exp_id};"
         cursor.execute(query)
         cnx.commit()
 
@@ -212,7 +221,6 @@ class Logger:
             query = f"SELECT num_pending FROM pending WHERE exp_id={self.exp_id} and time_point=(SELECT MAX(time_point) FROM pending);"
             cursor.execute(query)
             self.num_pending = cursor.fetchall()[0][0]
-            self.num_pending_list.append(self.num_pending)
 
             time.sleep(5)
 
@@ -310,6 +318,8 @@ class ControlCenter:
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
 
+        self.end_sys = False
+
     def performance_report(self):
         import math
         from numpy import trapz
@@ -317,18 +327,23 @@ class ControlCenter:
         cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
 
-        query = f"SELECT num_order FROM experiment WHERE exp_id={self.logger.exp_id};"
+        query = f"SELECT COUNT(*) FROM orders WHERE exp_id={self.logger.exp_id};"
         cursor.execute(query)
         num_order = cursor.fetchall()[0][0]
 
-        query = f"SELECT TIMESTAMPDIFF(SECOND, start_time, end_time) FROM experiment WHERE exp_id = {self.logger.exp_id};"
+        end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        query = f"SELECT TIMESTAMPDIFF(SECOND, start_time, NOW()) FROM experiment WHERE exp_id = {self.logger.exp_id};"
         cursor.execute(query)
         total_sec = cursor.fetchall()[0][0]
         h = math.trunc(total_sec / 3600)
         m = math.trunc((total_sec % 3600) / 60)
         s = (total_sec % 3600) % 60
+        h = ('00' + str(h))[-2:]
+        m = ('00' + str(m))[-2:]
+        s = ('00' + str(s))[-2:]
+        total_time = h+':'+m+':'+s
 
-        query = f"SELECT SUM(num_item) from departure WHERE exp_id={self.logger.exp_id};"
+        query = f"SELECT SUM(total_item) from orders WHERE exp_id={self.logger.exp_id};"
         cursor.execute(query)
         num_item = cursor.fetchall()[0][0]
 
@@ -336,27 +351,35 @@ class ControlCenter:
         cursor.execute(query)
         num_peak = cursor.fetchall()[0][0]
 
-        a = self.logger.num_pending_list
+        query = f"SELECT num_pending FROM pending WHERE exp_id={self.logger.exp_id};"
+        cursor.execute(query)
+        num_pending_list = list(pd.DataFrame(cursor.fetchall(), columns=['ls'])['ls'])
+
         while True:
             try:
-                a.remove(0)
+                num_pending_list.remove(0)
             except:
-                a.insert(0, 0)
-                a.append(0)
+                num_pending_list.insert(0, 0)
+                num_pending_list.append(0)
                 break
-        plt.plot(a)
+        plt.plot(num_pending_list)
         plt.ylabel('# pending orders')
 
-        auc = trapz(a, dx=5)
+        auc = trapz(num_pending_list, dx=5)
 
         print(
-            f"# Orders         : {num_order}",
-            f"# Items          : {num_item}",
-            f"Total Time       : {h}:{m}:{s}",
-            f"# Orders at Peak : {num_peak}",
-            f"AUC              : {auc}"
+            f"# of Orders         : {num_order}",
+            f"# of Items          : {num_item}",
+            f"Total Time          : {total_time}",
+            f"# of Orders at Peak : {num_peak}",
+            f"AUC                 : {auc}"
             , sep='\n')
-        plt.show()
+        # plt.show()
+
+        return [num_item, end_time, total_time, num_peak, auc], plt
+
+
+
 
     def ControlDB(self):
         largePrint('ControlDB is operated')
@@ -375,12 +398,11 @@ class ControlCenter:
         getdb_time = time.time()
         dbup_time = time.time()
 
-        while True:
+        while not self.end_sys:
 
             # 2초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
             # 300초 동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
-            if time.time() - getdb_time > 2 or self.just_get_db_flag:
-                print('level1')
+            if time.time() - getdb_time > 4 or self.just_get_db_flag:
                 self.just_get_db_flag_lock.acquire()
                 self.just_get_db_flag = False
                 self.just_get_db_flag_lock.release()
@@ -391,15 +413,15 @@ class ControlCenter:
                 pending_df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
                 getdb_time = time.time()
 
-                count = 0
-                for id_ in pending_df['id']:
-                    if id_ not in list(self.pending_df.df['id']):
-                        count += 1
+                # count = 0
+                # for id_ in pending_df['id']:
+                #     if id_ not in list(self.pending_df.df['id']):
+                #         count += 1
 
                 # if (count > 0 and time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
-                if (time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
+                # if (time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
+                if (time.time() - dbup_time > 4):
                     if self.robot_status['operating_order']['id'] != self.did_scheduling_dumpid.value:
-                        print('level2')
                         self.pending_df_lock.acquire()
                         self.pending_df.df = pending_df
                         self.pending_df_lock.release()
@@ -471,13 +493,13 @@ class ControlCenter:
                 self.update_inventory_flag = True
                 self.update_inventory_flag_lock.release()
 
-            time.sleep(0.5)
+            time.sleep(0.1)
 
 
     def Manager(self):
         largePrint('Manager() is on')
         did_dummy = False
-        while True:
+        while True: #not self.end_sys:
             self.operating_order_id_lock.acquire()
             self.operating_order_id.l = self.robot_status['operating_order']['orderid']
             self.operating_order_id_lock.release()
@@ -715,7 +737,7 @@ class ControlCenter:
         t_get_robot_status.start()
         t_send.start()
 
-        while True:
+        while True: #not self.end_sys:
             time.sleep(1)
 
     def UIServer(self):
@@ -736,10 +758,13 @@ class ControlCenter:
             'total_profit': 0
         }
 
+
+
         @app.route('/loading')
         def loadingworker():
 
             items = self.robot_status['operating_orderset']['item']
+            self.departure_info['num_item'] += sum_item(items)
 
             if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
                 pass
@@ -750,7 +775,7 @@ class ControlCenter:
 
                 if self.logger.departure['depart_time'] is not None:
                     self.logger.departure['arrive_time'] = now()
-                    self.logger.departure['num_order'] = len(set(self.departure_info['order_ids']))  # 이거 기록 안되고있음~~~~~~~~~~~~~~~~~~~~
+                    self.logger.departure['num_order'] = len(set(self.departure_info['order_ids']))
                     self.logger.departure['num_item'] = self.departure_info['num_item']
                     self.logger.departure['total_profit'] = self.departure_info['total_profit']
                     self.logger.insert_log(self.logger.departure)
@@ -787,14 +812,6 @@ class ControlCenter:
         @app.route('/unloading')
         def unloadingworker():
 
-            # cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
-            #                               auth_plugin='mysql_native_password')
-            # cursor = cnx.cursor()
-            # query = f"SELECT required_red, required_green, required_blue FROM orders WHERE exp_id={self.exp_id};"
-            # cursor.execute(query)
-            # info = cursor.fetchall()[0]
-
-
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
@@ -803,9 +820,35 @@ class ControlCenter:
                 pass
             else:
                 self.unloading_check_id = self.robot_status['operating_order']['id']
-                self.logger.timestamp_unloading['connect_time'] = now()
-                self.logger.timestamp_unloading['num_item'] = sum_item(items)
-                self.departure_info['num_item'] += sum_item(items)
+
+                host = 'localhost'
+                user = 'root'
+                passwd = 'pass'
+                dbname = 'orderdb'
+
+                cnx = mysql.connector.connect(host=host, user=user, password=passwd,
+                                              database=dbname, auth_plugin='mysql_native_password')
+                cursor = cnx.cursor()
+
+                r_r = 0
+                r_g = 0
+                r_b = 0
+                for id in order_id:
+                    query = f"SELECT required_red, required_green, required_blue FROM orders WHERE id={id} and exp_id={self.logger.exp_id};"
+                    cursor.execute(query)
+                    r_item = cursor.fetchall()[0]
+                    r_r += r_item[0]
+                    r_g += r_item[1]
+                    r_b += r_item[2]
+                if r_r<items['r'] or r_g<items['g'] or r_b<items['b']:
+                    self.unloading_complete_flag = True
+                    self.fulfill_order_flag = False
+                    self.update_inventory_flag = False
+                    return 'Just passing by..'
+                else:
+                    self.logger.timestamp_unloading['connect_time'] = now()
+                    self.logger.timestamp_unloading['num_item'] = sum_item(items)
+
 
             return render_template('unloading.html', items=items, order_id=order_id, address=address)
 
@@ -848,7 +891,7 @@ class ControlCenter:
         app.run(host='0.0.0.0', port=8080)
 
     def Print_info(self):
-        while True:
+        while not self.end_sys:
             robot_status_print = {}
             if not self.got_init_robot_status:
                 robot_status_print = {
@@ -933,7 +976,7 @@ class ControlCenter:
         t_RobotSocket = th.Thread(target=self.RobotSocket, args=())
         t_PrintLog = th.Thread(target=self.Print_info, args=())
         t_PendingLog = th.Thread(target=self.logger.get_pending_log, args=())
-        p_Schedule = mp.Process(target=Schedule,
+        p_Schedule = mp.Process(target=ScheduleByAddress,
                                 args=(
                                  self.existing_order_grp_profit,
                                  self.order_grp_new,
@@ -976,30 +1019,32 @@ class ControlCenter:
         t_PrintLog.start()
         p_Schedule.start()
 
-        while True:
+
+        while self.logger.num_pending == 0:
             time.sleep(1)
 
-        # print('뭐냐')
-        self.logger.end_experiment()
-        t_ControlDB.join()
-        t_UIServer.join()
-        t_Manager.join()
-        t_RobotSocket.join()
-        t_PendingLog.join()
-        t_PrintLog.join()
-        p_Schedule.terminate()
+        time.sleep(60)
+
+        while self.logger.num_pending != 0: # 또는 제한시간 종료조건 추가
+            time.sleep(1)
+
+        self.end_sys = True
+
+        # t_ControlDB.join()
+        # t_UIServer.join()
+        # t_Manager.join()
+        # t_RobotSocket.join()
+        # t_PendingLog.join()
+        # t_PrintLog.join()
+        # p_Schedule.terminate()
 
         with open("finish.txt") as f:
             print('\n', f.read(), '\n')
         largePrint(f'Experiment #{self.logger.exp_id} is finished!!')
-        self.performance_report()
+        result, plt = self.performance_report()
+        self.logger.end_experiment(result)
 
-
-
-
-
-
-
+        plt.show()
 
 if __name__ == "__main__":
     cc = ControlCenter()
