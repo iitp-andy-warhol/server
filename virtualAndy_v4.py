@@ -6,6 +6,9 @@ import numpy as np
 from turtle import Turtle, Screen
 from socket import *
 
+car_speed = 10
+
+
 def receive_command(sock):
     global command
     current_command = None
@@ -20,26 +23,10 @@ def receive_command(sock):
 
 def send_status(sock):
     global direction, current_address, action, command
-    global error_type, dash_file_name
     current_status = None
     ping = None
     while True:
-        if action == "M-mode" and dash_file_name is not None:
-            m_mode = {
-                'direction': direction,
-                'current_address': current_address,
-                'action': 'dash_file',
-                'error_type': error_type,
-                'dash_file_name': dash_file_name
-            }
-            sendData = pickle.dumps(m_mode, protocol=pickle.HIGHEST_PROTOCOL)
-            sock.send(sendData)
-            print('M-mode dic: ', m_mode)
-            dash_file_name = None
-            continue
-
         ping = command['ping']
-        
         robot_status = makeRobotStatus(direction, current_address, action, ping)
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
@@ -134,22 +121,15 @@ def Drive(ccw, car, car_speed, rx, ty, lx, by):
 
 
 def m_mode_on():
-    global mmode_flag, dash_block_flag, dash_file_name, error_type, action
+    global mmode_flag
     mmode_flag = True
     print("M-mode On")
-    action = "M-mode"
-    if not dash_block_flag:
-        dash_file_name = "dasharray_ex.npy"
-        error_type = 'manual'
-        print(action, dash_file_name)
-    dash_block_flag = True
 
 
 def m_mode_off():
-    global mmode_flag, dash_block_flag
+    global mmode_flag
     mmode_flag = False
     print("M-mode Off")
-    dash_block_flag = False
 
 
 def get_obstacle():
@@ -223,7 +203,7 @@ obstacle = Gui("orange", 1, 1, (0, 500))
 safezone = 20
 
 car = Gui("blue", 3, 3, (bx, by))
-car_speed = 10
+car_speed = car_speed
 car.dx = car_speed
 car.dy = 0
 
@@ -271,10 +251,6 @@ next_path = command['path']
 path_id = command['path_id']
 message = command['message']
 
-dash_block_flag = False
-dash_file_name = None
-error_type = None
-
 sender = th.Thread(target=send_status, args=(clientSock,))
 receiver = th.Thread(target=receive_command, args=(clientSock,))
 
@@ -292,13 +268,12 @@ class Address:
             self.stop = True
 
     def get_stop(self):
-        global action, stop, get_drive, good_to_go_loading, good_to_go_unloading, mmode_flag
+        global action, stop, get_drive, good_to_go_loading, good_to_go_unloading
         if self.id == operating_drive:
             if self.id == address:
                 stop = True
                 if self.id == 0:
-                    if not mmode_flag:
-                        action = "loading"
+                    action = "loading"
                     if good_to_go_loading:
                         stop = False
                         get_drive = True
@@ -307,8 +282,7 @@ class Address:
                     # if operating_drive == 0:
                     #     get_drive = True
                 else:
-                    if not mmode_flag:
-                        action = "unloading"
+                    action = "unloading"
                     if good_to_go_unloading:
                         stop = False
                         get_drive = True
@@ -367,6 +341,7 @@ while True:
 
     if mmode_flag:
         stop = True
+        action = "M-mode"
     elif obstacle.ycor() - safezone < car.ycor() < obstacle.ycor() + safezone and obstacle.xcor() - safezone < car.xcor() < obstacle.xcor() + safezone:
         stop = True
         print('obstacle')

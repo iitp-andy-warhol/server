@@ -8,7 +8,7 @@ import simpleaudio as sa
 
 ADDRESS = [0, 1, 2, 3, 4, 5, 6]
 BASKET_SIZE = 25
-OS_MIN = 15
+OS_MIN = 20
 
 PARTIAL_THRESHOLD = 5
 
@@ -24,12 +24,6 @@ SHORT_DIRECTION = np.array([[-1,  1,  1,  1, -1, -1, -1],
                            [ 1,  1, -1, -1, -1, -1,  1],
                            [ 1,  1,  1, -1, -1, -1, -1]])
 
-STOP_PENALTY = 3.0
-
-LOADING_TIME = 1.0
-UNLOADING_TIME = 1.0
-
-
 def driving_time_generator(start_address, end_address):
     # Randomly generates driving time between locations.
     diff = np.abs(end_address - start_address)
@@ -42,9 +36,6 @@ def build_driving_time_mat():
     for start_add in ADDRESS:
         mat[start_add] = np.array([driving_time_generator(start_add, end_add) for end_add in ADDRESS])
     return mat
-
-# 나중에는 실험에서 만든 결과를 외부 파일로부터 읽어오면 됨
-driving_time = build_driving_time_mat()
 
 def count_items(orders):
     # Counts the number of items in a single order

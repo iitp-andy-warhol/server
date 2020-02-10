@@ -81,7 +81,6 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
         lst = []
         path, direction = make_short_path(current_address, 0, direction)
         path = path[1:]
-        est_time = 0
     else:
         lst = DumpedOrderList
         r = count_color(DumpedOrderList, 'r')
@@ -94,8 +93,7 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
                                     order_address=address_set)
         do_dict = {dumped_order['address']: dumped_order for dumped_order in lst}
         lst = [do_dict[address] for address in path if address in set(range(1, 7))]
-        profit = compute_os_profit(address=address_set, do_list=DumpedOrderList)
-        est_time = compute_time_cost(address=address_set, do_list=DumpedOrderList, num_item=r + g + b)
+        profit = sum([do['profit'] for do in lst])
     dummy = makeDumpedOrder(dummy=True)
     lst.append(dummy)
     path_string = stringify_path(path)
@@ -105,8 +103,7 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
         'path': path_string,
         'profit': profit,
         'item': {'r': r, 'g': g, 'b': b},
-        'last_direction': direction,
-        'est_time': est_time
+        'last_direction': direction
     }
     return dic
 
@@ -119,31 +116,14 @@ def makeOrderGroup(ordergroupID=0, OrderSetList=None):
     if OrderSetList is None:
         lst = []
         profit = 0
-        est_time = 0
     else:
         lst = OrderSetList
         profit = 0
         for os in OrderSetList:
             profit += os['profit']
-        est_time = sum([os['est_time'] for os in OrderSetList])
     dic = {
         'id': ordergroupID,
         'ordersets': lst,
-        'profit': profit,
-        'est_time': est_time
+        'profit': profit
     }
     return dic
-
-def compute_os_profit(address, do_list):
-    profit = sum([do['profit'] for do in do_list])
-    max_driving_time = np.max([driving_time[add] for add in address])
-    stop_time = STOP_PENALTY * len(set(address))
-    return profit / (max_driving_time + stop_time)
-
-def compute_time_cost(address, do_list, num_item):
-    drive_time = np.max([driving_time[add] for add in address])
-    stop_time = STOP_PENALTY * len(set(address))
-    item_loading = num_item * LOADING_TIME
-    item_unloading = num_item * UNLOADING_TIME
-    total = drive_time + stop_time + item_loading + item_unloading
-    return total
