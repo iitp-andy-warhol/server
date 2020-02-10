@@ -313,6 +313,7 @@ class ControlCenter:
     def performance_report(self):
         import math
         from numpy import trapz
+        import matplotlib.pyplot as plt
         cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
 
@@ -374,7 +375,6 @@ class ControlCenter:
         getdb_time = time.time()
         dbup_time = time.time()
 
-
         while True:
 
             # 2초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
@@ -387,7 +387,6 @@ class ControlCenter:
 
                 cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
                 cursor = cnx.cursor()
-                cursor.execute(f"USE {dbname};")
 
                 pending_df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
                 getdb_time = time.time()
@@ -399,50 +398,44 @@ class ControlCenter:
 
                 # if (count > 0 and time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
                 if (time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
-                    print('level2')
-                    self.pending_df_lock.acquire()
-                    self.pending_df.df = pending_df
-                    self.pending_df_lock.release()
-
-                    # getdb_time = time.time()
-
-                    dbup_time = time.time()
-
-                    rs = copy.deepcopy(self.robot_status)
-
-                    self.schedule_current_address.value = rs['operating_order']['address']
-                    cur_path = str(rs['operating_orderset']["path"])
-                    self.schedule_direction.value = rs['direction']
-                    # print('curpath출력: ', cur_path)
-                    if cur_path is not None and cur_path != '0':
-                        if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs[
-                            'action'] == 'loading':
-                            self.schedule_direction.value = rs['direction'] * (-1)
-                        else:
-                            self.schedule_direction.value = rs['direction']
-
-                    cur_basket = rs['current_basket']
-                    # print('Action ^^^^^^^^^^^^^^^^', rs['action'])
-                    # print('cur_basket^^^^^^^^^^^^^^^^', cur_basket)
-                    # print('operating_order item ^^^^^^^^^^^^^^^^', rs['operating_order']['item'])
-                    fut_basket = {
-                        'r': cur_basket['r'] - rs['operating_order']['item']['r'],
-                        'g': cur_basket['g'] - rs['operating_order']['item']['g'],
-                        'b': cur_basket['b'] - rs['operating_order']['item']['b']
-                    }
-                    if rs['action'] == 'loading':
-                        fut_basket['r'] += rs['operating_orderset']['item']['r']
-                        fut_basket['g'] += rs['operating_orderset']['item']['g']
-                        fut_basket['b'] += rs['operating_orderset']['item']['b']
-                    # print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
-
-                    self.schedule_current_basket_lock.acquire()
-                    self.schedule_current_basket_r.value = fut_basket['r']
-                    self.schedule_current_basket_g.value = fut_basket['g']
-                    self.schedule_current_basket_b.value = fut_basket['b']
-                    self.schedule_current_basket_lock.release()
-                    print('befor level3', self.robot_status['operating_order']['id'], self.did_scheduling_dumpid.value)
                     if self.robot_status['operating_order']['id'] != self.did_scheduling_dumpid.value:
+                        print('level2')
+                        self.pending_df_lock.acquire()
+                        self.pending_df.df = pending_df
+                        self.pending_df_lock.release()
+
+                        dbup_time = time.time()
+
+                        rs = copy.deepcopy(self.robot_status)
+
+                        self.schedule_current_address.value = rs['operating_order']['address']
+                        cur_path = str(rs['operating_orderset']["path"])
+
+                        if cur_path is not None and cur_path != '0':
+                            if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs[
+                                'action'] == 'loading':
+                                self.schedule_direction.value = rs['direction'] * (-1)
+                            else:
+                                self.schedule_direction.value = rs['direction']
+
+                        cur_basket = rs['current_basket']
+                        fut_basket = {
+                            'r': cur_basket['r'] - rs['operating_order']['item']['r'],
+                            'g': cur_basket['g'] - rs['operating_order']['item']['g'],
+                            'b': cur_basket['b'] - rs['operating_order']['item']['b']
+                        }
+                        if rs['action'] == 'loading':
+                            fut_basket['r'] += rs['operating_orderset']['item']['r']
+                            fut_basket['g'] += rs['operating_orderset']['item']['g']
+                            fut_basket['b'] += rs['operating_orderset']['item']['b']
+
+                        self.schedule_current_basket_lock.acquire()
+                        self.schedule_current_basket_r.value = fut_basket['r']
+                        self.schedule_current_basket_g.value = fut_basket['g']
+                        self.schedule_current_basket_b.value = fut_basket['b']
+                        self.schedule_current_basket_lock.release()
+                        # print('befor level3', self.robot_status['operating_order']['id'], self.did_scheduling_dumpid.value)
+
                         self.scheduling_required_flag_lock.acquire()
                         self.scheduling_required_flag.value = True
                         self.scheduling_required_flag_lock.release()
@@ -794,6 +787,14 @@ class ControlCenter:
         @app.route('/unloading')
         def unloadingworker():
 
+            # cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+            #                               auth_plugin='mysql_native_password')
+            # cursor = cnx.cursor()
+            # query = f"SELECT required_red, required_green, required_blue FROM orders WHERE exp_id={self.exp_id};"
+            # cursor.execute(query)
+            # info = cursor.fetchall()[0]
+
+
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
@@ -932,7 +933,7 @@ class ControlCenter:
         t_RobotSocket = th.Thread(target=self.RobotSocket, args=())
         t_PrintLog = th.Thread(target=self.Print_info, args=())
         t_PendingLog = th.Thread(target=self.logger.get_pending_log, args=())
-        p_Schedule = mp.Process(target=ScheduleByAddress,
+        p_Schedule = mp.Process(target=Schedule,
                                 args=(
                                  self.existing_order_grp_profit,
                                  self.order_grp_new,

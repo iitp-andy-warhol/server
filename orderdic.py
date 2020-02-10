@@ -81,6 +81,7 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
         lst = []
         path, direction = make_short_path(current_address, 0, direction)
         path = path[1:]
+        est_time = 0
     else:
         lst = DumpedOrderList
         r = count_color(DumpedOrderList, 'r')
