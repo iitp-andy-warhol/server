@@ -6,6 +6,7 @@ from socket import *
 
 import pandas as pd
 import sys
+from datetime import datetime
 
 import mysql.connector
 import orderdic as od
@@ -172,7 +173,14 @@ class Logger:
         if reset:
             self.reset_table(tbname)
 
-    def end_experiment(self):
+    def end_experiment(self, result):
+        print('E. N. D')
+        # list result contains: end_time, total_time, num_peak, auc
+        end_time = result[0]
+        total_time = result[1]
+        num_peak = result[2]
+        auc = result[3]
+
         cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
                                       auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
@@ -184,7 +192,8 @@ class Logger:
         #     self.insert_log(record, reset=False)
 
         # 마지막으로 experiment 테이블 업데이트
-        query = f'UPDATE experiment SET end_time = NOW(), num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0 and exp_id={self.exp_id}) WHERE exp_id = {self.exp_id};'
+        query = f'UPDATE experiment SET end_time={end_time}, total_time={total_time}, num_pending_at_peak={num_peak}, AUC={auc}, num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0 and exp_id={self.exp_id}) WHERE exp_id = {self.exp_id};'
+        print('QUERY: ', query)
         cursor.execute(query)
         cnx.commit()
 
@@ -324,12 +333,17 @@ class ControlCenter:
         cursor.execute(query)
         num_order = cursor.fetchall()[0][0]
 
-        query = f"SELECT TIMESTAMPDIFF(SECOND, start_time, end_time) FROM experiment WHERE exp_id = {self.logger.exp_id};"
+        end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        query = f"SELECT TIMESTAMPDIFF(SECOND, start_time, NOW()) FROM experiment WHERE exp_id = {self.logger.exp_id};"
         cursor.execute(query)
         total_sec = cursor.fetchall()[0][0]
         h = math.trunc(total_sec / 3600)
         m = math.trunc((total_sec % 3600) / 60)
         s = (total_sec % 3600) % 60
+        h = ('00' + str(h))[-2:]
+        m = ('00' + str(m))[-2:]
+        s = ('00' + str(s))[-2:]
+        total_time = h+':'+m+':'+s
 
         query = f"SELECT SUM(total_item) from orders WHERE exp_id={self.logger.exp_id};"
         cursor.execute(query)
@@ -355,11 +369,16 @@ class ControlCenter:
         print(
             f"# of Orders         : {num_order}",
             f"# of Items          : {num_item}",
-            f"Total Time       : {h}:{m}:{s}",
+            f"Total Time          : {total_time}",
             f"# of Orders at Peak : {num_peak}",
-            f"AUC              : {auc}"
+            f"AUC                 : {auc}"
             , sep='\n')
         plt.show()
+
+        return [end_time, total_time, num_peak, auc]
+
+
+
 
     def ControlDB(self):
         largePrint('ControlDB is operated')
@@ -378,11 +397,11 @@ class ControlCenter:
         getdb_time = time.time()
         dbup_time = time.time()
 
-        while not self.end_sys:
+        while True:# not self.end_sys:
 
             # 2초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
             # 300초 동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
-            if time.time() - getdb_time > 2 or self.just_get_db_flag:
+            if time.time() - getdb_time > 4 or self.just_get_db_flag:
                 self.just_get_db_flag_lock.acquire()
                 self.just_get_db_flag = False
                 self.just_get_db_flag_lock.release()
@@ -400,7 +419,7 @@ class ControlCenter:
 
                 # if (count > 0 and time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
                 # if (time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
-                if (time.time() - dbup_time > 2):
+                if (time.time() - dbup_time > 4):
                     if self.robot_status['operating_order']['id'] != self.did_scheduling_dumpid.value:
                         self.pending_df_lock.acquire()
                         self.pending_df.df = pending_df
@@ -479,7 +498,7 @@ class ControlCenter:
     def Manager(self):
         largePrint('Manager() is on')
         did_dummy = False
-        while not self.end_sys:
+        while True: #not self.end_sys:
             self.operating_order_id_lock.acquire()
             self.operating_order_id.l = self.robot_status['operating_order']['orderid']
             self.operating_order_id_lock.release()
@@ -717,7 +736,7 @@ class ControlCenter:
         t_get_robot_status.start()
         t_send.start()
 
-        while not self.end_sys:
+        while True: #not self.end_sys:
             time.sleep(1)
 
     def UIServer(self):
@@ -987,11 +1006,9 @@ class ControlCenter:
 
         while self.logger.num_pending != 0: # 또는 제한시간 종료조건 추가
             time.sleep(1)
+
         self.end_sys = True
 
-
-        # print('뭐냐')
-        self.logger.end_experiment()
         # t_ControlDB.join()
         # t_UIServer.join()
         # t_Manager.join()
@@ -1003,12 +1020,12 @@ class ControlCenter:
         with open("finish.txt") as f:
             print('\n', f.read(), '\n')
         largePrint(f'Experiment #{self.logger.exp_id} is finished!!')
-        self.performance_report()
+        result = self.performance_report()
 
-        sys.exit()
+        print('뭐냐')
+        self.logger.end_experiment(result)
 
-
-
+        time.sleep(1)
 
 
 if __name__ == "__main__":
