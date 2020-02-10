@@ -445,7 +445,7 @@ def ScheduleByAddress(existing_order_grp_profit,
 
             add_dict = group_same_address(remaining_orders)
             sorted_add = sorted(add_dict.values(), key=lambda x: count_items(x))[::-1]
-            os_by_add = [group_orders_n(add, BASKET_SIZE) for add in sorted_add]
+            os_by_add = [[]] + [group_orders_n(add, BASKET_SIZE) for add in sorted_add]
             grouped_partial_orders = functools.reduce(lambda x, y: x + y, os_by_add)
 
             # Sort remaining orders by profit
@@ -486,7 +486,7 @@ def ScheduleByAddress(existing_order_grp_profit,
 
         nonlocal osID
         # Make order sets
-        all_ordersets = [od.makeOrderSet(direction=1,
+        all_ordersets = [od.makeOrderSet(direction=rs['direction'],
                                          current_address=rs['current_address'],
                                          ordersetid=osID, DumpedOrderList=grouped_dumped_orders[0])]
         osID += 1
@@ -497,7 +497,7 @@ def ScheduleByAddress(existing_order_grp_profit,
             all_ordersets.append(os)
             osID += 1
 
-        all_ordersets = all_ordersets[:1] + sort_orders(all_ordersets[1:], by='profit')
+        # all_ordersets = all_ordersets[:1] + sort_orders(all_ordersets[1:], by='profit')
 
         # Make order group
         new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)
@@ -522,16 +522,20 @@ def ScheduleByAddress(existing_order_grp_profit,
             schedule_current_basket_lock.release()
 
             pdf_for_scheduling = pending_df.df.copy()
+            print("*" * 50)
+            print("PENDING DF")
+            print(pending_df.df)
             pdf_for_scheduling = pdf_for_scheduling.iloc[
                 [x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
-
             pdf_for_scheduling['red'] = pdf_for_scheduling['required_red']
             pdf_for_scheduling['green'] = pdf_for_scheduling['required_green']
             pdf_for_scheduling['blue'] = pdf_for_scheduling['required_blue']
             del pdf_for_scheduling['required_red']
             del pdf_for_scheduling['required_green']
             del pdf_for_scheduling['required_blue']
-
+            print("*"*50)
+            print("PDF FOR SCHEDULING")
+            print(pdf_for_scheduling)
             sc_logger.scheduling['start_time'] = now()
             if len(pdf_for_scheduling) != 0:
                 sc_logger.scheduling['num_order'] = len(pdf_for_scheduling)

@@ -5,6 +5,7 @@ import time
 from socket import *
 
 import pandas as pd
+import sys
 
 import mysql.connector
 import orderdic as od
@@ -183,7 +184,7 @@ class Logger:
         #     self.insert_log(record, reset=False)
 
         # 마지막으로 experiment 테이블 업데이트
-        query = f'UPDATE experiment SET end_time = NOW(), num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0) WHERE exp_id = {self.exp_id};'
+        query = f'UPDATE experiment SET end_time = NOW(), num_fulfilled = (SELECT COUNT(*) FROM orders WHERE pending=0 and exp_id={self.exp_id}) WHERE exp_id = {self.exp_id};'
         cursor.execute(query)
         cnx.commit()
 
@@ -310,13 +311,16 @@ class ControlCenter:
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
 
+        self.end_sys = False
+
     def performance_report(self):
         import math
         from numpy import trapz
+        import matplotlib.pyplot as plt
         cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
         cursor = cnx.cursor()
 
-        query = f"SELECT num_order FROM experiment WHERE exp_id={self.logger.exp_id};"
+        query = f"SELECT COUNT(*) FROM orders WHERE exp_id={self.logger.exp_id};"
         cursor.execute(query)
         num_order = cursor.fetchall()[0][0]
 
@@ -327,7 +331,7 @@ class ControlCenter:
         m = math.trunc((total_sec % 3600) / 60)
         s = (total_sec % 3600) % 60
 
-        query = f"SELECT SUM(num_item) from departure WHERE exp_id={self.logger.exp_id};"
+        query = f"SELECT SUM(total_item) from orders WHERE exp_id={self.logger.exp_id};"
         cursor.execute(query)
         num_item = cursor.fetchall()[0][0]
 
@@ -349,10 +353,10 @@ class ControlCenter:
         auc = trapz(a, dx=5)
 
         print(
-            f"# Orders         : {num_order}",
-            f"# Items          : {num_item}",
+            f"# of Orders         : {num_order}",
+            f"# of Items          : {num_item}",
             f"Total Time       : {h}:{m}:{s}",
-            f"# Orders at Peak : {num_peak}",
+            f"# of Orders at Peak : {num_peak}",
             f"AUC              : {auc}"
             , sep='\n')
         plt.show()
@@ -374,8 +378,7 @@ class ControlCenter:
         getdb_time = time.time()
         dbup_time = time.time()
 
-
-        while True:
+        while not self.end_sys:
 
             # 2초에 한번 db 가져와보고 주문 3개이상 더 들어왔을 경우 pdf갱신 및 스케줄링 하게함.
             # 300초 동안 주문 3개이상 안들어오게 되면 더이상 스케줄링을 새로하지 않음.
@@ -386,61 +389,55 @@ class ControlCenter:
 
                 cnx = mysql.connector.connect(host=host, user=user, password=passwd, database=dbname, auth_plugin='mysql_native_password')
                 cursor = cnx.cursor()
-                cursor.execute(f"USE {dbname};")
 
                 pending_df = getdb(self.logger.exp_id, cursor, self.pending_pdf_colname, self.address_dict)
                 getdb_time = time.time()
 
-                count = 0
-                for id_ in pending_df['id']:
-                    if id_ not in list(self.pending_df.df['id']):
-                        count += 1
+                # count = 0
+                # for id_ in pending_df['id']:
+                #     if id_ not in list(self.pending_df.df['id']):
+                #         count += 1
 
-                if (count > 0 and time.time() - dbup_time > 60) or count >= 3 or len(pending_df['id'])==1:
-
-                    self.pending_df_lock.acquire()
-                    self.pending_df.df = pending_df
-                    self.pending_df_lock.release()
-
-                    getdb_time = time.time()
-
-                    dbup_time = time.time()
-
-                    rs = copy.deepcopy(self.robot_status)
-
-                    self.schedule_current_address.value = rs['operating_order']['address']
-                    cur_path = str(rs['operating_orderset']["path"])
-                    self.schedule_direction.value = rs['direction']
-                    # print('curpath출력: ', cur_path)
-                    if cur_path is not None and cur_path != '0':
-                        if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs[
-                            'action'] == 'loading':
-                            self.schedule_direction.value = rs['direction'] * (-1)
-                        else:
-                            self.schedule_direction.value = rs['direction']
-
-                    cur_basket = rs['current_basket']
-                    # print('Action ^^^^^^^^^^^^^^^^', rs['action'])
-                    # print('cur_basket^^^^^^^^^^^^^^^^', cur_basket)
-                    # print('operating_order item ^^^^^^^^^^^^^^^^', rs['operating_order']['item'])
-                    fut_basket = {
-                        'r': cur_basket['r'] - rs['operating_order']['item']['r'],
-                        'g': cur_basket['g'] - rs['operating_order']['item']['g'],
-                        'b': cur_basket['b'] - rs['operating_order']['item']['b']
-                    }
-                    if rs['action'] == 'loading':
-                        fut_basket['r'] += rs['operating_orderset']['item']['r']
-                        fut_basket['g'] += rs['operating_orderset']['item']['g']
-                        fut_basket['b'] += rs['operating_orderset']['item']['b']
-                    # print('fut_basket^^^^^^^^^^^^^^^^^', fut_basket)
-
-                    self.schedule_current_basket_lock.acquire()
-                    self.schedule_current_basket_r.value = fut_basket['r']
-                    self.schedule_current_basket_g.value = fut_basket['g']
-                    self.schedule_current_basket_b.value = fut_basket['b']
-                    self.schedule_current_basket_lock.release()
-
+                # if (count > 0 and time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
+                # if (time.time() - dbup_time > 10) or count >= 3 or len(pending_df['id'])==1:
+                if (time.time() - dbup_time > 2):
                     if self.robot_status['operating_order']['id'] != self.did_scheduling_dumpid.value:
+                        self.pending_df_lock.acquire()
+                        self.pending_df.df = pending_df
+                        self.pending_df_lock.release()
+
+                        dbup_time = time.time()
+
+                        rs = copy.deepcopy(self.robot_status)
+
+                        self.schedule_current_address.value = rs['operating_order']['address']
+                        cur_path = str(rs['operating_orderset']["path"])
+
+                        if cur_path is not None and cur_path != '0':
+                            if cur_path[cur_path.find(str(self.schedule_current_address.value)) - 1] == '9' and rs[
+                                'action'] == 'loading':
+                                self.schedule_direction.value = rs['direction'] * (-1)
+                            else:
+                                self.schedule_direction.value = rs['direction']
+
+                        cur_basket = rs['current_basket']
+                        fut_basket = {
+                            'r': cur_basket['r'] - rs['operating_order']['item']['r'],
+                            'g': cur_basket['g'] - rs['operating_order']['item']['g'],
+                            'b': cur_basket['b'] - rs['operating_order']['item']['b']
+                        }
+                        if rs['action'] == 'loading':
+                            fut_basket['r'] += rs['operating_orderset']['item']['r']
+                            fut_basket['g'] += rs['operating_orderset']['item']['g']
+                            fut_basket['b'] += rs['operating_orderset']['item']['b']
+
+                        self.schedule_current_basket_lock.acquire()
+                        self.schedule_current_basket_r.value = fut_basket['r']
+                        self.schedule_current_basket_g.value = fut_basket['g']
+                        self.schedule_current_basket_b.value = fut_basket['b']
+                        self.schedule_current_basket_lock.release()
+                        # print('befor level3', self.robot_status['operating_order']['id'], self.did_scheduling_dumpid.value)
+
                         self.scheduling_required_flag_lock.acquire()
                         self.scheduling_required_flag.value = True
                         self.scheduling_required_flag_lock.release()
@@ -482,7 +479,7 @@ class ControlCenter:
     def Manager(self):
         largePrint('Manager() is on')
         did_dummy = False
-        while True:
+        while not self.end_sys:
             self.operating_order_id_lock.acquire()
             self.operating_order_id.l = self.robot_status['operating_order']['orderid']
             self.operating_order_id_lock.release()
@@ -720,7 +717,7 @@ class ControlCenter:
         t_get_robot_status.start()
         t_send.start()
 
-        while True:
+        while not self.end_sys:
             time.sleep(1)
 
     def UIServer(self):
@@ -745,6 +742,7 @@ class ControlCenter:
         def loadingworker():
 
             items = self.robot_status['operating_orderset']['item']
+            self.departure_info['num_item'] += sum_item(items)
 
             if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
                 pass
@@ -792,6 +790,14 @@ class ControlCenter:
         @app.route('/unloading')
         def unloadingworker():
 
+            # cnx = mysql.connector.connect(host=self.host, user=self.user, password=self.passwd, database=self.dbname,
+            #                               auth_plugin='mysql_native_password')
+            # cursor = cnx.cursor()
+            # query = f"SELECT required_red, required_green, required_blue FROM orders WHERE exp_id={self.exp_id};"
+            # cursor.execute(query)
+            # info = cursor.fetchall()[0]
+
+
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
@@ -802,7 +808,7 @@ class ControlCenter:
                 self.unloading_check_id = self.robot_status['operating_order']['id']
                 self.logger.timestamp_unloading['connect_time'] = now()
                 self.logger.timestamp_unloading['num_item'] = sum_item(items)
-                self.departure_info['num_item'] += sum_item(items)
+
 
             return render_template('unloading.html', items=items, order_id=order_id, address=address)
 
@@ -845,7 +851,7 @@ class ControlCenter:
         app.run(host='0.0.0.0', port=8080)
 
     def Print_info(self):
-        while True:
+        while not self.end_sys:
             robot_status_print = {}
             if not self.got_init_robot_status:
                 robot_status_print = {
@@ -930,7 +936,7 @@ class ControlCenter:
         t_RobotSocket = th.Thread(target=self.RobotSocket, args=())
         t_PrintLog = th.Thread(target=self.Print_info, args=())
         t_PendingLog = th.Thread(target=self.logger.get_pending_log, args=())
-        p_Schedule = mp.Process(target=Schedule,
+        p_Schedule = mp.Process(target=ScheduleByAddress,
                                 args=(
                                  self.existing_order_grp_profit,
                                  self.order_grp_new,
@@ -973,27 +979,33 @@ class ControlCenter:
         t_PrintLog.start()
         p_Schedule.start()
 
-        finish = input()
-        while finish != 'f':
-            time.sleep(1)
-            finish = input()
 
+        while self.logger.num_pending == 0:
+            time.sleep(1)
+
+        time.sleep(60)
+
+        while self.logger.num_pending != 0: # 또는 제한시간 종료조건 추가
+            time.sleep(1)
+        self.end_sys = True
+
+
+        # print('뭐냐')
         self.logger.end_experiment()
-        t_ControlDB.join()
-        t_UIServer.join()
-        t_Manager.join()
-        t_RobotSocket.join()
-        t_PendingLog.join()
-        t_PrintLog.join()
-        p_Schedule.terminate()
+        # t_ControlDB.join()
+        # t_UIServer.join()
+        # t_Manager.join()
+        # t_RobotSocket.join()
+        # t_PendingLog.join()
+        # t_PrintLog.join()
+        # p_Schedule.terminate()
 
         with open("finish.txt") as f:
             print('\n', f.read(), '\n')
         largePrint(f'Experiment #{self.logger.exp_id} is finished!!')
         self.performance_report()
 
-
-
+        sys.exit()
 
 
 
