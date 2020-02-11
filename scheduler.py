@@ -288,7 +288,8 @@ def Schedule(existing_order_grp_profit,
             for i, dumped_order in enumerate(group_by_address, 1):
                 this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
                 dumID += 1
-            grouped_dumped_orders.insert(0, this_dump)
+            if count_items(this_dump) > 0:
+                grouped_dumped_orders.insert(0, this_dump)
 
         nonlocal osID
         # Make order sets

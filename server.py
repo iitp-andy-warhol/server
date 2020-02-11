@@ -764,6 +764,7 @@ class ControlCenter:
         def loadingworker():
 
             items = self.robot_status['operating_orderset']['item']
+            os_id = self.robot_status['operating_orderset']['id']
             self.departure_info['num_item'] += sum_item(items)
 
             if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
@@ -785,7 +786,7 @@ class ControlCenter:
                         'total_profit': 0
                     }
 
-            return render_template('loading.html', items=items)
+            return render_template('loading.html', items=items, os_id=os_id)
 
         @app.route('/loading-success')
         def change_flags_loading():
@@ -815,6 +816,7 @@ class ControlCenter:
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
             address = self.robot_status['operating_order']['address']
+            os_id = self.robot_status['operating_orderset']['id']
 
             if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
                 pass
@@ -850,7 +852,7 @@ class ControlCenter:
                     self.logger.timestamp_unloading['num_item'] = sum_item(items)
 
 
-            return render_template('unloading.html', items=items, order_id=order_id, address=address)
+            return render_template('unloading.html', items=items, order_id=order_id, address=address, os_id=os_id)
 
         @app.route('/unloading-success')
         def change_flags_unloading():
