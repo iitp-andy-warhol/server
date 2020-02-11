@@ -32,50 +32,6 @@ def find_least_stop_os(order_list):
         best_os = multiple_add[0]
     return best_os
 
-
-def get_optimized_order_set(pdf, rs, inventory):
-    if len(pdf) == 0:
-        return None
-    pdf['partialid'] = 0
-    pdf['profit'] = 1
-    pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
-
-    # Partialize orders first (e.g. enforcing basket max size constraint)
-    all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
-
-    # Update order profit according to # items
-    all_partials = [evaluate_order(LOADING_ZONE, order) for order in all_partials]
-
-    # Partialize orders again to satisfy current inventory status
-    in_inventory, not_in_inventory = partialize_by_rgb(all_partials, inventory)
-
-    if len(in_inventory):
-        best_os = find_least_stop_os(in_inventory)
-    else:
-        # Have to wait until current order set ends and inventory is replenished
-        best_os = find_least_stop_os(not_in_inventory)
-
-    nonlocal dumID
-    all_dumps = []
-    best_os = group_same_address(best_os).values()
-    for dumped_order in best_os:
-        all_dumps.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
-        dumID += 1
-
-    all_dumps = filter_empty_orders(all_dumps)
-
-    nonlocal osID
-    # Make order sets
-    # TODO : use last direction from previous order set
-    next_orderset = od.makeOrderSet(direction=rs['direction'],
-                                    current_address=LOADING_ZONE,
-                                    ordersetid=osID,
-                                    DumpedOrderList=all_dumps)
-    osID += 1
-    return next_orderset
-
-
-
 def Schedule(existing_order_grp_profit,
              order_grp_new,
              order_grp_new_lock,
@@ -254,8 +210,7 @@ def Schedule(existing_order_grp_profit,
         time.sleep(0.05)
 
 
-def ScheduleByAddress(
-                     pending_df,
+def ScheduleByAddress(pending_df,
                      update_orderset_flag,
                      update_orderset_flag_lock,
                      scheduling_required_flag,
@@ -275,93 +230,45 @@ def ScheduleByAddress(
 
     @timefn
     def get_optimized_orderset(pdf_for_scheduling, direction, free_inventory):
-        if len(pdf) == 0:
-            return None
-        pdf['partialid'] = 0
-        pdf['profit'] = 1
-        pending_orders = [od.makeOrder(row) for idx, row in pdf.iterrows()]
+        if len(pdf_for_scheduling) == 0:
+                return None
+        pdf_for_scheduling['partialid'] = 0
+        pdf_for_scheduling['profit'] = 1
+        pending_orders = [od.makeOrder(row) for idx, row in pdf_for_scheduling.iterrows()]
 
-        # Convert to partial orders
-        to_loading_zone = rs['operating_order']['id'] in [9999, 99999]
-        at_loading_zone = rs['current_address'] == 0
-        current_basket = rs['current_basket']
-
+        # Partialize orders first (e.g. enforcing basket max size constraint)
         all_partials = partialize_for_loading(pending_orders, item_limit=PARTIAL_THRESHOLD)
-        # Update order profit
-        all_partials = [evaluate_order(rs['current_address'], order) for order in all_partials]
 
-        if to_loading_zone or at_loading_zone:
-            # Sort orders by profit
-            all_partials = filter_empty_orders(all_partials)
-            add_dict = group_same_address(all_partials)
-            sorted_add = sorted(add_dict.values(), key=lambda x: count_items(x))[::-1]
-            os_by_add = [group_orders_n(add, BASKET_SIZE) for add in sorted_add]
-            grouped_partial_orders = concat_orders(os_by_add)
+        # Update order profit according to # items
+        all_partials = [evaluate_order(LOADING_ZONE, order) for order in all_partials]
+
+        # Partialize orders again to satisfy current inventory status
+        in_inventory, not_in_inventory = partialize_by_rgb(all_partials, free_inventory)
+
+        if len(in_inventory):
+            best_os = find_least_stop_os(in_inventory)
         else:
-            in_basket, not_in_basket = partialize_by_rgb(all_partials, current_basket)
-            in_basket = sort_orders(in_basket, by='profit', ascending=False)  # optional
-            this_os, remaining_orders = group_orders_for_basket(in_basket, current_basket)
-            remaining_orders += not_in_basket
+            # Have to wait until current order set ends and inventory is replenished
+            best_os = find_least_stop_os(not_in_inventory)
 
-            this_os = filter_empty_orders(this_os)
-            remaining_orders = filter_empty_orders(remaining_orders)
-
-            add_dict = group_same_address(remaining_orders)
-            sorted_add = sorted(add_dict.values(), key=lambda x: count_items(x))[::-1]
-            os_by_add = [group_orders_n(add, BASKET_SIZE) for add in sorted_add]
-            grouped_partial_orders = concat_orders(os_by_add)
-
-
-        single_add = list(filter(lambda x: count_items(x) > OS_MIN, grouped_partial_orders))
-        multiple_add = list(filter(lambda x: count_items(x) <= OS_MIN, grouped_partial_orders))
-        
-        if len(multiple_add):
-            partials = concat_orders(multiple_add)
-            multiple_add = group_orders_n(partials, BASKET_SIZE)
-
-        grouped_partial_orders = single_add + multiple_add
-
-        # Make dump orders
         nonlocal dumID
         all_dumps = []
-        for po_group in grouped_partial_orders:
-            group_by_address = group_same_address(po_group).values()
-            for dumped_order in group_by_address:
-                all_dumps.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
-                dumID += 1
+        best_os = group_same_address(best_os).values()
+        for dumped_order in best_os:
+            all_dumps.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
+            dumID += 1
 
-        grouped_dumped_orders = group_orders_n(all_dumps, BASKET_SIZE)
-
-        if to_loading_zone or at_loading_zone:
-            grouped_dumped_orders = filter_empty_orders(grouped_dumped_orders)
-        else:
-            this_dump = []
-            group_by_address = group_same_address(this_os).values()
-            for i, dumped_order in enumerate(group_by_address, 1):
-                this_dump.append(od.makeDumpedOrder(dumpid=dumID, PartialOrderList=dumped_order))
-                dumID += 1
-            grouped_dumped_orders.insert(0, this_dump)
+        all_dumps = filter_empty_orders(all_dumps)
 
         nonlocal osID
         # Make order sets
-        all_ordersets = [od.makeOrderSet(direction=rs['direction'],
-                                         current_address=rs['current_address'],
-                                         ordersetid=osID, DumpedOrderList=grouped_dumped_orders[0])]
+        # TODO : use last direction from previous order set
+        next_orderset = od.makeOrderSet(direction=direction,
+                                        current_address=LOADING_ZONE,
+                                        ordersetid=osID,
+                                        DumpedOrderList=all_dumps)
         osID += 1
-        for do_group in grouped_dumped_orders[1:]:
-            # TODO : improve algorithm estimating profit
-            os = od.makeOrderSet(direction=all_ordersets[-1]['last_direction'],
-                                 ordersetid=osID, DumpedOrderList=do_group)
-            all_ordersets.append(os)
-            osID += 1
-
-        # Make order group
-        new_order_grp = od.makeOrderGroup(OrderSetList=all_ordersets)
-
-        if new_order_grp['profit'] - existing_order_grp_profit > threshold:
-            return new_order_grp
-        else:
-            return None
+        return next_orderset
 
     while True:
         if scheduling_required_flag.value:
@@ -398,17 +305,23 @@ def ScheduleByAddress(
             sc_logger.scheduling['end_time'] = now()
             sc_logger.insert_log(sc_logger.scheduling)
 
-            new_orderset_container_lock.acquire()
-            new_orderset_container['dict'] = new_orderset
-            new_orderset_container_lock.release()
+            if new_orderset is not None:
+                new_orderset_container_lock.acquire()
+                new_orderset_container['dict'] = new_orderset
+                new_orderset_container_lock.release()
 
-            update_orderset_flag_lock.acquire()
-            update_orderset_flag.value = True
-            update_orderset_flag_lock.release()
+                update_orderset_flag_lock.acquire()
+                update_orderset_flag.value = True
+                update_orderset_flag_lock.release()
 
-            scheduling_required_flag_lock.acquire()
-            scheduling_required_flag.value = False
-            scheduling_required_flag_lock.release()
+                scheduling_required_flag_lock.acquire()
+                scheduling_required_flag.value = False
+                scheduling_required_flag_lock.release()
+
+            else:
+                scheduling_required_flag_lock.acquire()
+                scheduling_required_flag.value = False
+                scheduling_required_flag_lock.release()
 
         time.sleep(0.05)
 
