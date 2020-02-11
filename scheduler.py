@@ -381,28 +381,19 @@ def Schedule(existing_order_grp_profit,
         time.sleep(0.05)
 
 
-def ScheduleByAddress(existing_order_grp_profit,
-                     order_grp_new,
-                     order_grp_new_lock,
-                     update_order_grp_flag,
-                     update_order_grp_flag_lock,
+def ScheduleByAddress(
                      pending_df,
+                     update_orderset_flag,
+                     update_orderset_flag_lock,
                      scheduling_required_flag,
                      scheduling_required_flag_lock,
-                     schedule_changed_flag,
-                     schedule_changed_flag_lock,
-                     next_orderset_idx,
-                     next_orderset_idx_lock,
-                     operating_order_id,
+                     new_orderset_container,
+                     new_orderset_container_lock,
                      direction,
-                     current_address,
-                     current_basket_r,
-                     current_basket_g,
-                     current_basket_b,
-                     schedule_current_basket_lock,
-                     operating_dump_id,
-                     scheduler_id,
-                     did_scheduling_dumpid):
+                     free_inventory_r,
+                     free_inventory_g,
+                     free_inventory_b,
+                     scheduler_id):
 
     print('@@@@@@@@@@@ Schedule() is on@@@@@@@@@@@ ')
     sc_logger = Logger(for_scheduler=True, scheduler_id=scheduler_id.value)
@@ -410,7 +401,7 @@ def ScheduleByAddress(existing_order_grp_profit,
     dumID = 0
 
     @timefn
-    def get_optimized_order_grp(existing_order_grp_profit, pdf, rs, threshold=0):
+    def get_optimized_orderset(pdf_for_scheduling, direction, free_inventory):
         if len(pdf) == 0:
             return None
         pdf['partialid'] = 0
@@ -509,74 +500,50 @@ def ScheduleByAddress(existing_order_grp_profit,
     while True:
         if scheduling_required_flag.value:
             print('@@@@@@@@@@@ Making new schedule @@@@@@@@@@@')
-            schedule_current_basket_lock.acquire()
-            schedule_info = {
-                'direction': direction.value,
-                'current_address': current_address.value,
-                'current_basket': {'r': current_basket_r.value, 'g': current_basket_g.value,
-                                   'b': current_basket_b.value},
-                'operating_order': {'id': operating_dump_id.value}
-            }
-
-            schedule_current_basket_lock.release()
 
             pdf_for_scheduling = pending_df.df.copy()
-            print("*" * 50)
-            print("PENDING DF")
-            print(pending_df.df)
-            pdf_for_scheduling = pdf_for_scheduling.iloc[
-                [x not in operating_order_id.l for x in pdf_for_scheduling['id']]].reset_index()
+
             pdf_for_scheduling['red'] = pdf_for_scheduling['required_red']
             pdf_for_scheduling['green'] = pdf_for_scheduling['required_green']
             pdf_for_scheduling['blue'] = pdf_for_scheduling['required_blue']
             del pdf_for_scheduling['required_red']
             del pdf_for_scheduling['required_green']
             del pdf_for_scheduling['required_blue']
+
             print("*"*50)
             print("PDF FOR SCHEDULING")
             print(pdf_for_scheduling)
+
             sc_logger.scheduling['start_time'] = now()
             if len(pdf_for_scheduling) != 0:
                 sc_logger.scheduling['num_order'] = len(pdf_for_scheduling)
             else:
-                sc_logger.scheduling['num_order'] = 1
+                sc_logger.scheduling['num_order'] = 0
 
             num_item = 0
             for i in range(len(pdf_for_scheduling)):
                 num_item += pdf_for_scheduling[['red', 'green', 'blue']].iloc[i].sum()
             sc_logger.scheduling['num_item'] = num_item
 
-            new_order_grp = get_optimized_order_grp(existing_order_grp_profit.value, pdf_for_scheduling, schedule_info)
+            free_inventory = {'r': free_inventory_r.value,
+                              'g': free_inventory_g.value,
+                              'b': free_inventory_b.value}
+            new_orderset = get_optimized_orderset(pdf_for_scheduling, direction.value, free_inventory)
             sc_logger.scheduling['end_time'] = now()
             sc_logger.insert_log(sc_logger.scheduling)
 
-            if new_order_grp is not None:
+            new_orderset_container_lock.acquire()
+            new_orderset_container['dict'] = new_orderset
+            new_orderset_container_lock.release()
 
-                did_scheduling_dumpid.value = schedule_info['operating_order']['id']
-                order_grp_new_lock.acquire()
-                order_grp_new['dict'] = new_order_grp
-                order_grp_new_lock.release()
+            update_orderset_flag_lock.acquire()
+            update_orderset_flag.value = True
+            update_orderset_flag_lock.release()
 
-                update_order_grp_flag_lock.acquire()
-                update_order_grp_flag.value = True
-                update_order_grp_flag_lock.release()
+            scheduling_required_flag_lock.acquire()
+            scheduling_required_flag.value = False
+            scheduling_required_flag_lock.release()
 
-                schedule_changed_flag_lock.acquire()
-                schedule_changed_flag.value = True
-                schedule_changed_flag_lock.release()
-
-                next_orderset_idx_lock.acquire()
-                next_orderset_idx.value = -1
-                next_orderset_idx_lock.release()
-
-                scheduling_required_flag_lock.acquire()
-                scheduling_required_flag.value = False
-                scheduling_required_flag_lock.release()
-
-            else:
-                scheduling_required_flag_lock.acquire()
-                scheduling_required_flag.value = False
-                scheduling_required_flag_lock.release()
         time.sleep(0.05)
 
 
