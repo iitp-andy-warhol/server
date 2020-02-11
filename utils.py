@@ -45,6 +45,23 @@ def count_items(orders):
     else:
         return sum([count_items(order) for order in orders])
 
+def get_profit(orders):
+    # Counts the number of items in a single order
+    # or the total number of items in a sequence of orders
+    if type(orders) == dict:
+        return orders['profit']
+    else:
+        # # addresses
+        n_address = len(set([order['address'] for order in orders]))
+        return sum([get_profit(order) for order in orders]) / max(n_address, 1)
+
+def evaluate_order_set(order_set):
+    # TODO: Consider unique number of addresses.
+    # Temporary method of evaluation w/ discount factor
+    profits = np.array([order['profit'] for order in order_set])
+    discount = np.power(DISCOUNT_ORDER, np.arange(len(order_set)))
+    return np.dot(profits, discount)
+
 def count_color(orders, color):
     # Counts the number of items of a specific color
     # in a single order or a sequence of orders
