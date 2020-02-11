@@ -11,7 +11,7 @@ mid_ip = 'localhost'
 
 
 def send_robot_status(server, client):
-    global direction, current_address, action, current_basket, operating_orderset, operating_order, next_orderset
+    global direction, current_address, action, current_basket, operating_orderset, operating_order, id_list
     current_raw_status = None
     mmode_block = False
     mmode_start = None
@@ -25,8 +25,9 @@ def send_robot_status(server, client):
             dash_file_name = raw_status['dash_file_name']
             error_type = raw_status['error_type']
             continue
+        else:
+            robot_ping = time.time() - raw_status['ping']
 
-        robot_ping = time.time() - raw_status['ping']
         if raw_status != current_raw_status:
             print("Raw status: ", raw_status, time.strftime('%c', time.localtime(time.time())))
             current_raw_status = np.copy(raw_status)
@@ -36,7 +37,7 @@ def send_robot_status(server, client):
         action = raw_status['action']
 
         robot_status = rs.makeRobotStatus(direction, current_address, action, current_basket, operating_orderset,
-                                          operating_order, next_orderset, robot_ping)
+                                          operating_order, id_list, robot_ping)
 
         if action == "M-mode" and not mmode_block:
             now = datetime.now()
@@ -63,13 +64,16 @@ def send_robot_status(server, client):
 
 
 def receive_robot_command(server, client):
-    global command, massage, operating_orderset, operating_order, operating_order_idx, operating_order_idx_lock, next_orderset
+    global command, massage, operating_orderset, operating_order, operating_order_idx, operating_order_idx_lock
     global need_after_loading_job_flag, need_after_loading_job_flag_lock, need_after_unloading_job_flag, need_after_unloading_job_flag_lock
-    global current_basket, action, next_orderset
+    global current_basket, action, id_list
     wait_flag = False
     current_massage = None
     current_id = None
     orderset_block = False
+    keep_msg = None
+    orders_list = []
+    id_list = []
     while True:
         recvData = server.recv(8192)
         massage = pickle.loads(recvData)
@@ -79,13 +83,19 @@ def receive_robot_command(server, client):
             current_massage = np.copy(massage)
 
         if massage['orderset'] is not None and not orderset_block:
-            if massage['orderset']['id'] != current_id:
-                next_orderset = massage['orderset']
-                current_id = massage['orderset']['id']
+            if massage['orderset']['id'] not in id_list:
+                if len(orders_list) < 3:
+                    orders_list += [massage['orderset']]
+                    id_list += [massage['orderset']['id']]
 
         if action == 'loading' and (operating_order['id'] == 99999 or operating_order['id'] == 9999):
-            if next_orderset['id'] is not None:
-                operating_orderset = next_orderset
+            if len(id_list) > 0:
+                operating_orderset = orders_list.pop(0)
+                operating_id = id_list.pop(0)
+                if operating_orderset['id'] != operating_id:
+                    print('!!!!!!!! ID != ORDERSET !!!!!!!!!!!')
+                    print('!!!!!!!! ID != ORDERSET !!!!!!!!!!!')
+                    print('!!!!!!!! ID != ORDERSET !!!!!!!!!!!')
 
                 operating_order_idx_lock.acquire()
                 operating_order_idx = 0  # reset idx
@@ -97,10 +107,10 @@ def receive_robot_command(server, client):
                 operating_order_idx += 1
                 operating_order_idx_lock.release()
 
-                next_orderset = {'id': None, 'path': None, 'item': None}
+                # next_orderset = {'id': None, 'path': None, 'item': None}
                 # print(3333, next_orderset)
-                if operating_order['address'] != 0:
-                    orderset_block = True
+                # if operating_order['address'] != 0:
+                #     orderset_block = True
             else:
                 operating_orderset = {'init': 'init', 'id': 99999999,
                                       'dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}],
@@ -117,57 +127,43 @@ def receive_robot_command(server, client):
             # print(4444, next_orderset)
 
         if action == 'unloading' and massage['massage'] == 'unloading_complete':
-            if next_orderset['id'] is None:
+            # if next_orderset['id'] is None:
                 # update basket
-                item = operating_order['item']
-                current_basket['r'] -= item['r']
-                current_basket['g'] -= item['g']
-                current_basket['b'] -= item['b']
+            item = operating_order['item']
+            current_basket['r'] -= item['r']
+            current_basket['g'] -= item['g']
+            current_basket['b'] -= item['b']
 
-                operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
+            operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
 
-                operating_order_idx_lock.acquire()
-                operating_order_idx += 1
-                operating_order_idx_lock.release()
-            else:
-                # print("?????????????????????????????????????????????????????")
-                # update basket
-                item = operating_order['item']
-                current_basket['r'] -= item['r']
-                current_basket['g'] -= item['g']
-                current_basket['b'] -= item['b']
-
-                operating_orderset = next_orderset
-
-                operating_order_idx_lock.acquire()
-                operating_order_idx = 0  # reset idx
-                operating_order_idx_lock.release()
-
-                operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
-
-                operating_order_idx_lock.acquire()
-                operating_order_idx += 1
-                operating_order_idx_lock.release()
-
-                next_orderset = {'id': None, 'path': None, 'item': None}
-                # print(2222, next_orderset)
+            operating_order_idx_lock.acquire()
+            operating_order_idx += 1
+            operating_order_idx_lock.release()
+            # else:
+            #     # print("?????????????????????????????????????????????????????")
+            #     # update basket
+            #     item = operating_order['item']
+            #     current_basket['r'] -= item['r']
+            #     current_basket['g'] -= item['g']
+            #     current_basket['b'] -= item['b']
+            #
+            #     operating_orderset = next_orderset
+            #
+            #     operating_order_idx_lock.acquire()
+            #     operating_order_idx = 0  # reset idx
+            #     operating_order_idx_lock.release()
+            #
+            #     operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
+            #
+            #     operating_order_idx_lock.acquire()
+            #     operating_order_idx += 1
+            #     operating_order_idx_lock.release()
+            #
+            #     next_orderset = {'id': None, 'path': None, 'item': None}
+            #     # print(2222, next_orderset)
 
         if massage['massage'] == 'loading_complete':
             current_basket = operating_orderset['item']  # update basket
-
-
-        # if massage['massage'] == 'unloading_complete':
-        #     # update basket
-        #     item = operating_order['item']
-        #     current_basket['r'] -= item['r']
-        #     current_basket['g'] -= item['g']
-        #     current_basket['b'] -= item['b']
-        #
-        #     operating_order = operating_orderset['dumporders'][operating_order_idx]  # get next order from orderset
-        #
-        #     operating_order_idx_lock.acquire()
-        #     operating_order_idx += 1
-        #     operating_order_idx_lock.release()
 
         if operating_orderset['id'] is not None:
             if operating_orderset['path'] == None:
@@ -179,14 +175,15 @@ def receive_robot_command(server, client):
             if command['message'] == 'loading_complete' or command['message'] == 'unloading_complete':
                 if action == "loading" or action == "unloading":
                     wait_flag = True
+                    keep_msg =command['message']
         if action != "loading" and action != "unloading":
             wait_flag = False
         if wait_flag and command['message'] == None:
-            continue
+            command['message'] = keep_msg
         command['ping'] = time.time()
         print("Command: ", command)
         sendData = pickle.dumps(command, protocol=3)
-        client.send(sendData)
+        client.sendall(sendData)
 
 
 direction = 1
@@ -198,7 +195,6 @@ operating_orderset = {'init': 'init', 'id': 99999999,
                      'path': None, 'profit': None, 'item': {'r': 0, 'g': 0, 'b': 0}}
 
 operating_order = {'address': 0, 'id': 99999, 'item': {'r':0,'g':0,'b':0}, 'orderid':[999999]}
-next_orderset = {'id': None, 'path': None, 'item': None}
 
 operating_order_idx = 0
 operating_order_idx_lock = th.Lock()
