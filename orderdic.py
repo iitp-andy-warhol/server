@@ -60,7 +60,7 @@ def makeDumpedOrder(dumpid=9999, PartialOrderList=[], dummy=False):
     dic = {
         'id': dumpid,
         'partial': PartialOrderList,
-        'orderid': orderlist,
+        'orderid': list(set(orderlist)),
         'item': {'r': r, 'g': g, 'b': b},
         'address': address,
         'profit': profit
@@ -100,7 +100,7 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
     path_string = stringify_path(path)
 
     orderlist = [do['orderid'] for do in DumpedOrderList]
-    orderlist = list(chain(*orderlist))
+    orderlist = list(set(list(chain(*orderlist))))
 
     dic = {
         'id': ordersetid,
