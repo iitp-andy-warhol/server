@@ -1,5 +1,6 @@
 from utils import *
 from collections import defaultdict
+from itertools import chain
 
 def makeOrder(order):
     """
@@ -97,9 +98,14 @@ def makeOrderSet(direction, current_address=0, ordersetid=0, DumpedOrderList=Non
     dummy = makeDumpedOrder(dummy=True)
     lst.append(dummy)
     path_string = stringify_path(path)
+
+    orderlist = [do['orderid'] for do in DumpedOrderList]
+    orderlist = list(chain(*orderlist))
+
     dic = {
         'id': ordersetid,
         'dumporders': lst,
+        'orderid': orderlist,
         'path': path_string,
         'profit': profit,
         'item': {'r': r, 'g': g, 'b': b},
