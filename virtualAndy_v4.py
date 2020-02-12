@@ -417,6 +417,9 @@ while True:
     if current_address != address:
         current_address = address
 
+    good_to_go_unloading = False
+    good_to_go_loading = False
+
     pen.clear()
     pen.write(
         "path: {}\ndirection: {}\naddress: {}\naction: {}\nstop: {}\ngood to go loading/unloading: {}/{}".format(
