@@ -195,7 +195,7 @@ operating_orderset = {'init': 'init', 'id': 99999999,
                      'path': None, 'profit': None, 'item': {'r': 0, 'g': 0, 'b': 0}}
 
 operating_order = {'address': 0, 'id': 99999, 'item': {'r':0,'g':0,'b':0}, 'orderid':[999999]}
-
+id_list = []
 operating_order_idx = 0
 operating_order_idx_lock = th.Lock()
 
