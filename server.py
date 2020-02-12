@@ -299,7 +299,6 @@ class ControlCenter:
         self.inventory_lock = th.Lock()
 
         self.got_init_robot_status = False
-        # self.got_init_orderset = False
         self.robot_status = mp.Manager().dict(
             {'direction': 1, 'current_address': 0,'operating_order': {'address': 99999, 'id': 99999, 'item': {'r': 0, 'g': 0, 'b': 0}, 'orderid':[99999]},
              'operating_orderset':{'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0','dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]},
@@ -310,13 +309,10 @@ class ControlCenter:
              'ping': None})
 
         self.schedule_direction = mp.Value('i', 1)
-        # self.schedule_current_address = mp.Value('i',0)
         self.schedule_inventory_r = mp.Value('i',25)
         self.schedule_inventory_g = mp.Value('i',25)
         self.schedule_inventory_b = mp.Value('i',25)
         self.schedule_inventory_lock = mp.Lock()
-        # self.schedule_operating_dump_id = mp.Value('i', 99999)
-        # self.did_scheduling_dumpid = mp.Value('i', -1)
 
         self.loading_complete_id = 88888
         self.unloading_complete_id = 88888
@@ -515,6 +511,18 @@ class ControlCenter:
                     self.schedule_inventory_g.value = next_inventory['g']
                     self.schedule_inventory_b.value = next_inventory['b']
                     self.schedule_inventory_lock.release()
+                else:
+                    self.schedule_direction.value = self.robot_status['direction']
+                    next_inventory = {'r': 25,
+                                      'g': 25,
+                                      'b': 25
+                                      }
+
+                    self.schedule_inventory_lock.acquire()
+                    self.schedule_inventory_r.value = next_inventory['r']
+                    self.schedule_inventory_g.value = next_inventory['g']
+                    self.schedule_inventory_b.value = next_inventory['b']
+                    self.schedule_inventory_lock.release()
 
 
                 self.pending_df = self.pending_df.reset_index(drop=True)
@@ -672,24 +680,28 @@ class ControlCenter:
                 data = sock.recv(2**15)
                 data = pickle.loads(data)
 
-                self.robot_status = mp.Manager().dict(data)
+                if 'table_name' in list(data.keys()):
+                    self.logger.insert_log(data, reset=False)
 
-                self.got_init_robot_status = True
+                else:
+                    self.robot_status = mp.Manager().dict(data)
 
-                # 로딩워커 UI 갱신 알림 및 로깅
-                if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0\
-                        and data['operating_order']['id'] != 9999:
-                    did_alert_os_id = data['operating_orderset']['id']
+                    self.got_init_robot_status = True
 
-                    self.logger.timestamp_loading['refresh_alert_time'] = now()
-                    beepsound('loading')
+                    # 로딩워커 UI 갱신 알림 및 로깅
+                    if data['operating_orderset']['id'] not in [99999999, did_alert_os_id] and data['current_address'] == 0\
+                            and data['operating_order']['id'] != 9999:
+                        did_alert_os_id = data['operating_orderset']['id']
 
-                # 언로딩워커 UI 갱신 알림 및 로깅
-                if data['operating_order']['id'] not in [9999, did_alert_od_id] and data['current_address'] != 0:
-                    did_alert_od_id = data['operating_order']['id']
+                        self.logger.timestamp_loading['refresh_alert_time'] = now()
+                        beepsound('loading')
 
-                    self.logger.timestamp_unloading['refresh_alert_time'] = now()
-                    beepsound('unloading')
+                    # 언로딩워커 UI 갱신 알림 및 로깅
+                    if data['operating_order']['id'] not in [9999, did_alert_od_id] and data['current_address'] != 0:
+                        did_alert_od_id = data['operating_order']['id']
+
+                        self.logger.timestamp_unloading['refresh_alert_time'] = now()
+                        beepsound('unloading')
 
         port = 8081
 
@@ -877,24 +889,20 @@ class ControlCenter:
             else:
                 robot_status_print = self.robot_status
             with pd.option_context('display.max_rows', None, 'display.max_columns',
-                                   None):  # more options can be specified also
+                                   None):
                 print(f"## ============================= EXP_ID: {self.logger.exp_id} ============================= ##",
                       f"                          {time.strftime('%c', time.localtime(time.time()))} ",
                       '- - - - - - - - - - - - - - - - System Status - - - - - - - - - - - - - - - -',
                       f'| got_init_robot_status +++++: {self.got_init_robot_status}',
-                      # f'| got_init_orderset ---------: {self.got_init_orderset}',
-                      f'| ready_for_scheduling_flag ---------: {self.ready_for_scheduling_flag}',
+                      f'| ready_for_scheduling_flag -: {self.ready_for_scheduling_flag}',
                       f'| scheduling_required_flag ++: {self.scheduling_required_flag.value}',
-                      f'| update_orderset_flag -----: {self.update_orderset_flag.value}',
-                      # f'| schedule_changed_flag +++++: {self.schedule_changed_flag.value}',
+                      f'| update_orderset_flag ------: {self.update_orderset_flag.value}',
+                      f'| send_next_orderset_flag +++: {self.send_next_orderset_flag}',
+                      f'| just_get_db_flag ----------: {self.just_get_db_flag}',
+                      f'| new_orderset_ready_flag +++: {self.new_orderset_ready_flag}',
                       f'| send_next_orderset_flag ---: {self.send_next_orderset_flag}',
-                      f'| just_get_db_flag ++++++++++: {self.just_get_db_flag}',
-                      f'| new_orderset_ready_flag ---------: {self.new_orderset_ready_flag}',
-                      f'| send_next_orderset_flag ---------: {self.send_next_orderset_flag}',
-                      f'| new_orderset_sended_flag ---------: {self.new_orderset_sended_flag}',
-                      f'| sended_orders ---------: {self.sended_orders}',
-                      # f'| next_orderset_idx ---------: {self.next_orderset_idx.value}',
-                      # f'| next_orderset_idx ---------: {self.next_orderset_idx.value}',
+                      f'| new_orderset_sended_flag ++: {self.new_orderset_sended_flag}',
+                      f'| sended_orders -------------: {self.sended_orders}',
                       f'| loading_complete_flag +++++: {self.loading_complete_flag}',
                       f'| unloading_complete_flag ---: {self.unloading_complete_flag}',
                       f'| fulfill_order_flag ++++++++: {self.fulfill_order_flag}',
@@ -902,16 +910,9 @@ class ControlCenter:
 
                       '\n- - - - - - - - - - - - - - - Order Status - - - - - - - - - - - - - - - -',
                       f"| num_pending_order +++++++++: {self.logger.num_pending}",
-                      f"| operating_orderset +++++++++: {self.operating_orderset}",
-                      f"| orderset_queue ---------: {[os['id'] for os in self.orderset_queue]}",
-                      # f"| next_orderset",
-                      # f"|  └ id +++++++++++++++++++++: {self.next_orderset['id']}",
-                      # f"|  └ path -------------------: {self.next_orderset['path']}",
-                      # f"|  └ item +++++++++++++++++++: {self.next_orderset['item']}",
-                      # f"|  └ dumporders_id ----------: {[dumporder['id'] for dumporder in self.next_orderset['dumporders']]}",
-                      # f"|  └ dumporders_address +++++: {[dumporder['address'] for dumporder in self.next_orderset['dumporders']]}",
-                      # f"|  └ dumporders_item --------: {[dumporder['item'] for dumporder in self.next_orderset['dumporders']]}",
-                      f'| inventory +++++++++++++++++: {self.inventory}',
+                      f"| operating_orderset --------: {self.operating_orderset}",
+                      f"| orderset_queue ++++++++++++: {[os['id'] for os in self.orderset_queue]}",
+                      f'| inventory -----------------: {self.inventory}',
 
                       f"\n- - - - - - - - - - - - - - - Robot Status - - - - - - - - - - - - - - -",
                       f"                        {robot_status_print['log_time']}",
@@ -931,11 +932,7 @@ class ControlCenter:
                       f"|  └ dumporders_id ----------: {[dumporder['id'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
                       f"|  └ dumporders_address +++++: {[dumporder['address'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
                       f"|  └ dumporders_item --------: {[dumporder['item'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
-                      # f"| next_orderset",
-                      # f"|  └ id +++++++++++++++++++++: {robot_status_print['next_orderset']['id']}",
-                      # f"|  └ path -------------------: {robot_status_print['next_orderset']['path']}",
-                      # f"|  └ item +++++++++++++++++++: {robot_status_print['next_orderset']['item']}",
-                      f"| orderset_id_list  +++++++++++++++++++: {robot_status_print['orderset_id_list']}",
+                      f"| orderset_id_list  +++++++++: {robot_status_print['orderset_id_list']}",
 
                       f'## ====================================================================== ##',
 
