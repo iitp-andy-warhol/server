@@ -7,7 +7,7 @@ import robotstatus as rs
 from datetime import datetime
 
 
-mid_ip = 'localhost'
+mid_ip = '172.20.10.2'
 
 
 def send_robot_status(server, client):
@@ -17,16 +17,22 @@ def send_robot_status(server, client):
     mmode_start = None
     error_type = None
     dash_file_name = None
+    robot_ping = 0
     while True:
         recvData = client.recv(8192)
         raw_status = pickle.loads(recvData)
 
-        if raw_status['action'] == 'dash_file':
+        if raw_status['action'] == 'dash_file_name':
             dash_file_name = raw_status['dash_file_name']
             error_type = raw_status['error_type']
+            print('!!!!!!!!!!!!!!!!!')
             continue
-        else:
-            robot_ping = time.time() - raw_status['ping']
+        elif raw_status['action'] != 'm_mode':
+            try:
+                robot_ping = time.time() - raw_status['ping']
+            except:
+                robot_ping = time.time()
+
 
         if raw_status != current_raw_status:
             print("Raw status: ", raw_status, time.strftime('%c', time.localtime(time.time())))
@@ -43,20 +49,22 @@ def send_robot_status(server, client):
             now = datetime.now()
             mmode_start = now.strftime("%Y-%m-%d %H:%M:%S")
             mmode_block = True
+            print('!!!!!!!!!!!Mmodeblock')
         if action != "M-mode" and mmode_block:
             now = datetime.now()
             m_mode = {
                 'table_name': 'm_mode',
-                'start_time': mmode_start,
-                'end_time': now.strftime("%Y-%m-%d %H:%M:%S"),
-                'error_type': error_type,
-                'dash_file_name': dash_file_name
+                'start_time': f"'{mmode_start}'",
+                'end_time': f"'{now.strftime('%Y-%m-%d %H:%M:%S')}'",
+                'error_type': f"'{error_type}'",
+                'dash_file_name': f"'{dash_file_name}'"
             }
             mmode_block = False
             sendData = pickle.dumps(m_mode, protocol=pickle.HIGHEST_PROTOCOL)
-    ##        # server.sendall(sendData)
-   ##        # print("dash file send time: ", time.strftime('%c', time.localtime(time.time())))
-    ##       # continue
+            server.sendall(sendData)
+            print("dash file send time: ", time.strftime('%c', time.localtime(time.time())))
+            print(m_mode)
+            continue
 
         sendData = pickle.dumps(robot_status, protocol=pickle.HIGHEST_PROTOCOL)
         server.sendall(sendData)

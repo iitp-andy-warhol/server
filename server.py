@@ -17,6 +17,7 @@ import operator
 
 from flask import request
 
+
 def getdb(exp_id, cursor, pending_df_colname, address_dict):
     query = f"SELECT {', '.join(pending_df_colname)} " + f"FROM orders WHERE pending = 1 and exp_id = {exp_id}"
     cursor.execute(query)
@@ -170,6 +171,7 @@ class Logger:
         val = val[:-2]
 
         query = f"INSERT INTO {tbname} ({col}) VALUES ({val});"
+        print(query)
         cursor.execute(query)
         cnx.commit()
 
@@ -680,8 +682,9 @@ class ControlCenter:
             while True:
                 data = sock.recv(2**15)
                 data = pickle.loads(data)
-
+                print(data)
                 if 'table_name' in list(data.keys()):
+                    print('엠모드인서트')
                     self.logger.insert_log(data, reset=False)
 
                 else:
@@ -795,6 +798,28 @@ class ControlCenter:
             return render_template('loading.html', orders=ordersets,
                                    n_orders=n_orders, complete=complete)
 
+        # @app.route('/loading-success')
+        # def change_flags_loading():
+        #
+        #     if self.robot_status['operating_orderset']['id'] in [self.loading_complete_id, 99999999]:
+        #         pass
+        #     else:
+        #         # log 기록
+        #         self.logger.timestamp_loading['confirm_time'] = now()
+        #         self.logger.insert_log(self.logger.timestamp_loading)
+        #         self.logger.departure['depart_time'] = now()
+        #
+        #         self.loading_complete_id = self.robot_status['operating_orderset']['id']
+        #
+        #         self.loading_complete_flag_lock.acquire()
+        #         self.loading_complete_flag = True
+        #         self.loading_complete_flag_lock.release()
+        #
+        #         self.update_inventory_flag_lock.acquire()
+        #         self.update_inventory_flag = True
+        #         self.update_inventory_flag_lock.release()
+        #     return render_template('loading_success.html')
+
         @app.route('/unloading', methods=['GET', 'POST'])
         def unloadingworker():
             items = self.robot_status['operating_order']['item']
@@ -804,32 +829,6 @@ class ControlCenter:
             current_orderset = self.robot_status['operating_orderset']['dumporders']
             upcoming = current_orderset[current_orderset.index(current_order)+1:]
             n_upcoming = len(upcoming)
-
-            if n_upcoming == 0:
-                time.sleep(3)
-                complete = 1
-                if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
-                    pass
-                else:
-                    self.unloading_complete_id = self.robot_status['operating_order']['id']
-
-                    # log 기록
-                    self.logger.timestamp_unloading['confirm_time'] = now()
-                    self.logger.insert_log(self.logger.timestamp_unloading)
-                    self.departure_info['order_ids'] = self.departure_info['order_ids'] + order_id
-                    self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
-
-                    self.unloading_complete_flag_lock.acquire()
-                    self.unloading_complete_flag = True
-                    self.unloading_complete_flag_lock.release()
-
-                    self.fulfill_order_flag_lock.acquire()
-                    self.fulfill_order_flag = True
-                    self.fulfill_order_flag_lock.release()
-                return render_template('unloading.html',
-                                       current_order=current_order,
-                                       upcoming=upcoming, n_upcoming=n_upcoming,
-                                       complete=complete)
 
             if 'confirm' in request.form:
                 complete = 1
@@ -890,12 +889,40 @@ class ControlCenter:
                                    upcoming=upcoming, n_upcoming=n_upcoming,
                                    complete=complete)
 
+        # @app.route('/unloading-success')
+        # def change_flags_unloading():
+        #
+        #     order_id = self.robot_status['operating_order']['orderid']
+        #     address = self.robot_status['operating_order']['address']
+        #
+        #     if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
+        #         pass
+        #     else:
+        #         self.unloading_complete_id = self.robot_status['operating_order']['id']
+        #
+        #         # log 기록
+        #         self.logger.timestamp_unloading['confirm_time'] = now()
+        #         self.logger.insert_log(self.logger.timestamp_unloading)
+        #         self.departure_info['order_ids'] = self.departure_info['order_ids'] + order_id
+        #         self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
+        #
+        #         self.unloading_complete_flag_lock.acquire()
+        #         self.unloading_complete_flag = True
+        #         self.unloading_complete_flag_lock.release()
+        #
+        #         self.fulfill_order_flag_lock.acquire()
+        #         self.fulfill_order_flag = True
+        #         self.fulfill_order_flag_lock.release()
+        #
+        #     return render_template('unloading_success.html', order_id=order_id, address=address)
+
         @app.route('/monitor')
         def monitoring():
 
             return 'This is monitor.'
 
         app.run(host='0.0.0.0', port=8080)
+
 
     def Print_info(self):
         while not self.end_sys:
@@ -908,7 +935,7 @@ class ControlCenter:
                     'current_basket': None,
                     'operating_orderset': {'id':None, 'path':None, 'item': None, 'dumporders':[]},
                     'operating_order': {'id':None, 'address':None, 'item': None},
-                    'next_orderset': {'id': None, 'path': None, 'item': None},
+                    'orderset_id_list': [],
                     'ping': None,
                     'log_time': None
                 }
