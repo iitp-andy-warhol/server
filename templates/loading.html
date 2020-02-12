@@ -3,17 +3,72 @@
 {% block styles %}
 {{super()}}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/worker.css') }}">
+    <style>
+    .table td, .table th {
+        font-size: 20px;
+        text-align: center;
+
+    }
+    .content-container {
+    max-width: 60rem;
+    padding: 5rem 1rem;
+    margin-left:  auto;
+    margin-right: auto;
+    }
+    </style>
 {% endblock %}
 {% block content %}
+    <div class="content-container">
     <h1 style="color:#424949">Loading Worker</h1><br>
-    <h2>
-        <span style="color:#F4511E;">Red: {{items['r']}} </span><br>
-        <span style="color:#2ECC71;">Green: {{items['g']}} </span><br>
-        <span style="color:#03A9F4;">Blue: {{items['b']}} </span>
-    </h2>
+    <div class="table-sm">
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 20%">ID</th>
+                <th scope="col" style="width: 20%; color:#F4511E;">Red</th>
+                <th scope="col" style="width: 20%; color:#2ECC71;">Green</th>
+                <th scope="col" style="width: 20%; color:#03A9F4;">Blue</th>
+                <th style="width: 10%"></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ orders[0]['id'] }}</td>
+                <td>{{ orders[0]['item']['r'] }}</td>
+                <td>{{ orders[0]['item']['g'] }}</td>
+                <td>{{ orders[0]['item']['b'] }}</td>
+                <td>
+                    <form action="/loading-success">
+                    <button class="btn btn-warning btn-lg" type="submit">Confirm</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
     <br>
-    <br>
-    <form action="/loading-success">
-        <button class="btn btn-warning btn-lg" type="submit">Confirm</button>
-    </form>
+    <h2 style="color:#424949">Upcoming orders</h2>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 20%">ID</th>
+                <th scope="col" style="width: 20%; color:#F4511E;">Red</th>
+                <th scope="col" style="width: 20%; color:#2ECC71;">Green</th>
+                <th scope="col" style="width: 20%; color:#03A9F4;">Blue</th>
+                <th style="width: 10%"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {%  for order in orders[1:] %}
+            <tr>
+                <td>{{ order['id'] }}</td>
+                <td>{{ order['item']['r'] }}</td>
+                <td>{{ order['item']['g'] }}</td>
+                <td>{{ order['item']['b'] }}</td>
+                <td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
 {% endblock %}

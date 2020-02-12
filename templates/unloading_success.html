@@ -3,6 +3,18 @@
 {% block styles %}
 {{super()}}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/worker.css') }}">
+    <style>
+    .table td, .table th {
+        font-size: 20px;
+        text-align: center;
+    }
+    .content-container {
+    max-width: 60rem;
+    padding: 5rem 1rem;
+    margin-left:  auto;
+    margin-right: auto;
+    }
+    </style>
 {% endblock %}
 {% block content %}
     <h1 style="color:#424949";">Unloading Worker</h1>

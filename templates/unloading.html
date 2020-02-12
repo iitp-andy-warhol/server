@@ -3,23 +3,47 @@
 {% block styles %}
 {{super()}}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/worker.css') }}">
+    <style>
+    .table td, .table th {
+        font-size: 20px;
+        text-align: center;
+    }
+    .content-container {
+    max-width: 60rem;
+    padding: 5rem 1rem;
+    margin-left:  auto;
+    margin-right: auto;
+    }
+    </style>
 {% endblock %}
 {% block content %}
-    <h1 style="color:#424949">Unloading Worker</h1>
-    <br>
-    <h2>
-        <b>Order ID</b> {{order_id}}   <b>Address</b> {{address}}
-        <br>
-        <br>
-        <span style="color:#F4511E;"><b>Red: {{items['r']}} </b></span><br>
-        <span style="color:#2ECC71;"><b>Green: {{items['g']}} </b></span><br>
-        <span style="color:#03A9F4;"><b>Blue: {{items['b']}} </b></span>
-		<br>
-		<p>{{same}}</p>
-    </h2>
-    <br>
-    <br>
-    <form action="/unloading-success">
-        <button class="btn btn-warning btn-lg" type="submit">Confirm</button>
-    </form>
+    <div class="content-container">
+    <h1 style="color:#424949">Unloading Worker</h1><br>
+    <div class="table-sm">
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 20%">Address</th>
+                <th scope="col" style="width: 20%; color:#F4511E;">Red</th>
+                <th scope="col" style="width: 20%; color:#2ECC71;">Green</th>
+                <th scope="col" style="width: 20%; color:#03A9F4;">Blue</th>
+                <th style="width: 10%"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {%  for order in orderset %}
+            <tr>
+                <td>{{ order['address'] }}</td>
+                <td>{{ order['item']['r'] }}</td>
+                <td>{{ order['item']['g'] }}</td>
+                <td>{{ order['item']['b'] }}</td>
+                <td>
+                    <button class="btn btn-warning btn-lg">Confirm</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    </div>
 {% endblock %}
