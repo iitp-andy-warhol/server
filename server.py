@@ -274,6 +274,7 @@ class ControlCenter:
 
         self.operating_orderset = {'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0','dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]}
         self.orderset_queue = []
+        self.QUEUE_SIZE = 2
         self.sended_orders = {} #{112:(3,4,2), ...}
         self.just_sended_orderset = {'item': {'r': 0, 'g': 0, 'b': 0}, 'id':99999999,'path':'0','dumporders': [{'id': 99999, 'partial': [], 'orderid': [999999], 'item': {'r': 0, 'g': 0, 'b': 0}, 'address': 0}]}
 
@@ -546,7 +547,7 @@ class ControlCenter:
 
             # HQ의 오더셋 큐가 줄어들었을 때 다음 오더셋 전달신호 생성
             if self.got_init_robot_status:
-                if len(self.robot_status['orderset_id_list']) < 3 and self.new_orderset_ready_flag and len(self.orderset_queue)<3:
+                if len(self.robot_status['orderset_id_list']) < self.QUEUE_SIZE and self.new_orderset_ready_flag and len(self.orderset_queue)<self.QUEUE_SIZE:
                     self.send_next_orderset_flag_lock.acquire()
                     self.send_next_orderset_flag = True
                     self.send_next_orderset_flag_lock.release()
@@ -717,7 +718,7 @@ class ControlCenter:
         def loadingworker():
             op_item = self.robot_status['operating_orderset']['item']
             next_items = [os['item'] for os in self.orderset_queue]
-            while len(next_items) < 3:
+            while len(next_items) < self.QUEUE_SIZE:
                 next_items.append({'r':0, 'g':0, 'b':0})
 
             self.departure_info['num_item'] += sum_item(op_item)
@@ -741,7 +742,7 @@ class ControlCenter:
                         'total_profit': 0
                     }
 
-            return render_template('loading.html', items=op_item) #item1 = items[0], item2=items[1], item3=items[2])
+            return render_template('loading.html', items=op_item) #item1 = items[0], item2=items[1])
 
         @app.route('/loading-success')
         def change_flags_loading():
