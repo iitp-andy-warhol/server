@@ -18,8 +18,6 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 -- Schema orderdb
 -- -----------------------------------------------------
  SET NAMES utf8mb4 ;
- SET SQL_MODE='ALLOW_INVALID_DATES';
-
 -- -----------------------------------------------------
 -- Table `orderdb`.`scheduler`
 -- -----------------------------------------------------
@@ -43,18 +41,14 @@ CREATE TABLE IF NOT EXISTS `orderdb`.`experiment` (
   `start_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `end_time` TIMESTAMP NULL DEFAULT NULL,
   `max_time` INT(4) NOT NULL,
+  `num_order` INT(11) NOT NULL DEFAULT 0,
+  `num_fulfilled` INT(11) NOT NULL DEFAULT 0,
   `order_stop_time` INT(4) NOT NULL,
   `dist_item` VARCHAR(45) NULL DEFAULT NULL,
   `dist_address` VARCHAR(45) NULL DEFAULT NULL,
   `dist_order` VARCHAR(45) NULL DEFAULT NULL,
   `scheduler_id` INT NOT NULL,
   `reliability` TINYINT(1) NULL DEFAULT 0,
-  `num_order` INT(11) NOT NULL DEFAULT 0,
-  `num_fulfilled` INT(11) NOT NULL DEFAULT 0,
-  `num_item` INT(11) NOT NULL DEFAULT 0,
-  `total_time` TIME NULL DEFAULT NULL,
-  `num_pending_at_peak` INT(5) NULL DEFAULT NULL,
-  `AUC` FLOAT(11) NULL DEFAULT NULL,
   PRIMARY KEY (`exp_id`),
   INDEX `fk1_idx` (`scheduler_id` ASC),
   CONSTRAINT `fk1`
@@ -220,6 +214,7 @@ CREATE TABLE IF NOT EXISTS `orderdb`.`M_mode` (
   `start_time` TIMESTAMP NULL,
   `end_time` TIMESTAMP NULL,
   `error_type` VARCHAR(45) NULL DEFAULT NULL,
+  `dash_file_name` VARCHAR(100) NOT NULL DEFAULT '.',
   PRIMARY KEY (`mmode_id`),
   INDEX `fk10_idx` (`exp_id` ASC),
   CONSTRAINT `fk10`
@@ -340,4 +335,3 @@ SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 */
-INSERT INTO scheduler (comment) VALUES ('test');

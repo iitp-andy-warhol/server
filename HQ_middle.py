@@ -72,8 +72,10 @@ def receive_robot_command(server, client):
     current_id = None
     orderset_block = False
     keep_msg = None
+    keep_id = None
     orders_list = []
     id_list = []
+    counter = 0
     while True:
         recvData = server.recv(8192)
         massage = pickle.loads(recvData)
@@ -172,18 +174,22 @@ def receive_robot_command(server, client):
                 command['path'] = tuple(map(int, operating_orderset['path']))
             command['path_id'] = operating_orderset['id']
             command['message'] = massage['massage']
+            command['message_id'] = counter
             if command['message'] == 'loading_complete' or command['message'] == 'unloading_complete':
                 if action == "loading" or action == "unloading":
                     wait_flag = True
-                    keep_msg =command['message']
+                    keep_msg = command['message']
+                    keep_id = command['message_id']
         if action != "loading" and action != "unloading":
             wait_flag = False
         if wait_flag and command['message'] == None:
             command['message'] = keep_msg
+            command['message_id'] = keep_id
         command['ping'] = time.time()
         print("Command: ", command)
         sendData = pickle.dumps(command, protocol=3)
         client.sendall(sendData)
+        counter += 1
 
 
 direction = 1
@@ -213,6 +219,7 @@ command = {
     'message': None,  # loading_complete / unloading_complete / None
     'path': (0, ),  # path / None
     'path_id': None,  # to ignore same path
+    'message_id': -1,
     'ping': 0
 }
 
