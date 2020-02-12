@@ -18,8 +18,12 @@
 {% endblock %}
 {% block content %}
     <div class="content-container">
-    <h1 style="color:#424949">Unloading Worker</h1><br>
-    <div class="table-sm">
+    <h1 style="color:#424949">Unloading Worker</h1>
+        <br>
+        <a href="/unloading"><button class="btn btn-danger btn-lg float-right">Refresh</button></a>
+    <br>
+    <br>
+        <div class="table-sm">
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
@@ -31,19 +35,51 @@
             </tr>
         </thead>
         <tbody>
-            {%  for order in orderset %}
+            <tr>
+                <td>{{ current_order['address'] }}</td>
+                <td>{{ current_order['item']['r'] }}</td>
+                <td>{{ current_order['item']['g'] }}</td>
+                <td>{{ current_order['item']['b'] }}</td>
+                <td>
+                    {% if complete == 0 %}
+                        <form method="POST">
+                        <button class="btn btn-warning btn-lg" name="confirm" type="submit">Confirm</button>
+                        </form>
+                    {% else %}
+                        <form method="GET">
+                            Complete
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+    <br>
+    <h2 style="color:#424949">Upcoming orders</h2>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 20%">Address</th>
+                <th scope="col" style="width: 20%; color:#F4511E;">Red</th>
+                <th scope="col" style="width: 20%; color:#2ECC71;">Green</th>
+                <th scope="col" style="width: 20%; color:#03A9F4;">Blue</th>
+                <th style="width: 10%"></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if n_upcoming > 0 %}
+            {% for order in upcoming %}
             <tr>
                 <td>{{ order['address'] }}</td>
                 <td>{{ order['item']['r'] }}</td>
                 <td>{{ order['item']['g'] }}</td>
                 <td>{{ order['item']['b'] }}</td>
-                <td>
-                    <button class="btn btn-warning btn-lg">Confirm</button>
-                </td>
+                <td></td>
             </tr>
             {% endfor %}
+        {% endif %}
         </tbody>
     </table>
-    </div>
     </div>
 {% endblock %}

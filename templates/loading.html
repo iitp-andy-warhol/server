@@ -19,7 +19,10 @@
 {% endblock %}
 {% block content %}
     <div class="content-container">
-    <h1 style="color:#424949">Loading Worker</h1><br>
+    <h1 style="color:#424949">Loading Worker</h1>
+        <br>
+        <a href="/loading"><button class="btn btn-danger btn-lg float-right">Refresh</button></a>
+    <br>
     <div class="table-sm">
     <table class="table table-bordered table-striped">
         <thead>
@@ -33,15 +36,23 @@
         </thead>
         <tbody>
             <tr>
+            {% if n_orders > 0 %}
                 <td>{{ orders[0]['id'] }}</td>
                 <td>{{ orders[0]['item']['r'] }}</td>
                 <td>{{ orders[0]['item']['g'] }}</td>
                 <td>{{ orders[0]['item']['b'] }}</td>
                 <td>
-                    <form action="/loading-success">
-                    <button class="btn btn-warning btn-lg" type="submit">Confirm</button>
-                    </form>
+                    {% if complete == 0 %}
+                        <form method="POST">
+                        <button class="btn btn-warning btn-lg" name="confirm" type="submit">Confirm</button>
+                        </form>
+                    {% else %}
+                        <form method="GET">
+                            Complete
+                        </form>
+                    {% endif %}
                 </td>
+            {% endif %}
             </tr>
         </tbody>
     </table>
@@ -59,7 +70,8 @@
             </tr>
         </thead>
         <tbody>
-            {%  for order in orders[1:] %}
+        {% if n_orders > 0 %}
+            {% for order in orders[1:] %}
             <tr>
                 <td>{{ order['id'] }}</td>
                 <td>{{ order['item']['r'] }}</td>
@@ -68,6 +80,7 @@
                 <td></td>
             </tr>
             {% endfor %}
+        {% endif %}
         </tbody>
     </table>
     </div>

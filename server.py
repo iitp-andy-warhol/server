@@ -15,6 +15,7 @@ from scheduler import *
 import copy
 import operator
 
+from flask import request
 
 def getdb(exp_id, cursor, pending_df_colname, address_dict):
     query = f"SELECT {', '.join(pending_df_colname)} " + f"FROM orders WHERE pending = 1 and exp_id = {exp_id}"
@@ -741,128 +742,176 @@ class ControlCenter:
             'total_profit': 0
         }
 
-        @app.route('/loading')
+
+
+        @app.route('/loading', methods=['GET', 'POST'])
         def loadingworker():
             op_item = self.robot_status['operating_orderset']['item']
-            # next_items = [os['item'] for os in self.orderset_queue]
-            # while len(next_items) < self.QUEUE_SIZE:
-            #     next_items.append({'r':0, 'g':0, 'b':0})
+            ordersets = [self.operating_orderset] + self.orderset_queue
 
-            ordersets = [self.operating_orderset]+self.orderset_queue
+            if 'confirm' in request.form:
+                complete = 1
+                if self.robot_status['operating_orderset']['id'] in [self.loading_complete_id, 99999999]:
+                    pass
+                else:
+                    # log 기록
+                    self.logger.timestamp_loading['confirm_time'] = now()
+                    self.logger.insert_log(self.logger.timestamp_loading)
+                    self.logger.departure['depart_time'] = now()
 
-            self.departure_info['num_item'] += sum_item(op_item)
+                    self.loading_complete_id = self.robot_status['operating_orderset']['id']
 
-            if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
-                pass
+                    self.loading_complete_flag_lock.acquire()
+                    self.loading_complete_flag = True
+                    self.loading_complete_flag_lock.release()
+
+                    self.update_inventory_flag_lock.acquire()
+                    self.update_inventory_flag = True
+                    self.update_inventory_flag_lock.release()
+
             else:
-                self.loading_check_id = self.robot_status['operating_orderset']['id']
-                self.logger.timestamp_loading['connect_time'] = now()
-                self.logger.timestamp_loading['num_item'] = sum_item(op_item)
+                complete = 0
+                self.departure_info['num_item'] += sum_item(op_item)
 
-                if self.logger.departure['depart_time'] is not None:
-                    self.logger.departure['arrive_time'] = now()
-                    self.logger.departure['num_order'] = len(set(self.departure_info['order_ids']))
-                    self.logger.departure['num_item'] = self.departure_info['num_item']
-                    self.logger.departure['total_profit'] = self.departure_info['total_profit']
-                    self.logger.insert_log(self.logger.departure)
-                    self.departure_info = {
-                        'order_ids': [],
-                        'num_item': 0,
-                        'total_profit': 0
-                    }
+                if self.robot_status['operating_orderset']['id'] in [self.loading_check_id, 99999999]:
+                    pass
+                else:
+                    self.loading_check_id = self.robot_status['operating_orderset']['id']
+                    self.logger.timestamp_loading['connect_time'] = now()
+                    self.logger.timestamp_loading['num_item'] = sum_item(op_item)
 
-            return render_template('loading.html', items=ordersets)
+                    if self.logger.departure['depart_time'] is not None:
+                        self.logger.departure['arrive_time'] = now()
+                        self.logger.departure['num_order'] = len(set(self.departure_info['order_ids']))
+                        self.logger.departure['num_item'] = self.departure_info['num_item']
+                        self.logger.departure['total_profit'] = self.departure_info['total_profit']
+                        self.logger.insert_log(self.logger.departure)
+                        self.departure_info = {
+                            'order_ids': [],
+                            'num_item': 0,
+                            'total_profit': 0
+                        }
+            n_orders = len(ordersets)
+            return render_template('loading.html', orders=ordersets,
+                                   n_orders=n_orders, complete=complete)
 
-        @app.route('/loading-success')
-        def change_flags_loading():
+        # @app.route('/loading-success')
+        # def change_flags_loading():
+        #
+        #     if self.robot_status['operating_orderset']['id'] in [self.loading_complete_id, 99999999]:
+        #         pass
+        #     else:
+        #         # log 기록
+        #         self.logger.timestamp_loading['confirm_time'] = now()
+        #         self.logger.insert_log(self.logger.timestamp_loading)
+        #         self.logger.departure['depart_time'] = now()
+        #
+        #         self.loading_complete_id = self.robot_status['operating_orderset']['id']
+        #
+        #         self.loading_complete_flag_lock.acquire()
+        #         self.loading_complete_flag = True
+        #         self.loading_complete_flag_lock.release()
+        #
+        #         self.update_inventory_flag_lock.acquire()
+        #         self.update_inventory_flag = True
+        #         self.update_inventory_flag_lock.release()
+        #     return render_template('loading_success.html')
 
-            if self.robot_status['operating_orderset']['id'] in [self.loading_complete_id, 99999999]:
-                pass
-            else:
-                # log 기록
-                self.logger.timestamp_loading['confirm_time'] = now()
-                self.logger.insert_log(self.logger.timestamp_loading)
-                self.logger.departure['depart_time'] = now()
-
-                self.loading_complete_id = self.robot_status['operating_orderset']['id']
-
-                self.loading_complete_flag_lock.acquire()
-                self.loading_complete_flag = True
-                self.loading_complete_flag_lock.release()
-
-                self.update_inventory_flag_lock.acquire()
-                self.update_inventory_flag = True
-                self.update_inventory_flag_lock.release()
-            return render_template('loading_success.html')
-
-        @app.route('/unloading')
+        @app.route('/unloading', methods=['GET', 'POST'])
         def unloadingworker():
-
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
 
-            if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
-                pass
-            else:
-                self.unloading_check_id = self.robot_status['operating_order']['id']
+            current_order = self.robot_status['operating_order']
+            current_orderset = self.robot_status['operating_orderset']['dumporders']
+            upcoming = current_orderset[current_orderset.index(current_order)+1:]
+            n_upcoming = len(upcoming)
 
-                host = 'localhost'
-                user = 'root'
-                passwd = 'pass'
-                dbname = 'orderdb'
-                cnx = mysql.connector.connect(host=host, user=user, password=passwd,
-                                              database=dbname, auth_plugin='mysql_native_password')
-                cursor = cnx.cursor()
-
-                r_r = 0
-                r_g = 0
-                r_b = 0
-                for id in order_id:
-                    query = f"SELECT required_red, required_green, required_blue FROM orders WHERE id={id} and exp_id={self.logger.exp_id};"
-                    cursor.execute(query)
-                    r_item = cursor.fetchall()[0]
-                    r_r += r_item[0]
-                    r_g += r_item[1]
-                    r_b += r_item[2]
-                if r_r<items['r'] or r_g<items['g'] or r_b<items['b']:
-                    self.unloading_complete_flag = True
-                    self.fulfill_order_flag = False
-                    self.update_inventory_flag = False
-                    return 'Just passing by..'
+            if 'confirm' in request.form:
+                complete = 1
+                if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
+                    pass
                 else:
-                    self.logger.timestamp_unloading['connect_time'] = now()
-                    self.logger.timestamp_unloading['num_item'] = sum_item(items)
+                    self.unloading_complete_id = self.robot_status['operating_order']['id']
 
-                    return render_template('unloading.html',
-                                           operating_order_id=self.robot_status['operating_order']['id'],
-                                           operating_orderset=self.robot_status['operating_orderset'])
+                    # log 기록
+                    self.logger.timestamp_unloading['confirm_time'] = now()
+                    self.logger.insert_log(self.logger.timestamp_unloading)
+                    self.departure_info['order_ids'] = self.departure_info['order_ids'] + order_id
+                    self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
 
-        @app.route('/unloading-success')
-        def change_flags_unloading():
+                    self.unloading_complete_flag_lock.acquire()
+                    self.unloading_complete_flag = True
+                    self.unloading_complete_flag_lock.release()
 
-            order_id = self.robot_status['operating_order']['orderid']
-            address = self.robot_status['operating_order']['address']
-
-            if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
-                pass
+                    self.fulfill_order_flag_lock.acquire()
+                    self.fulfill_order_flag = True
+                    self.fulfill_order_flag_lock.release()
             else:
-                self.unloading_complete_id = self.robot_status['operating_order']['id']
+                complete = 0
+                if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
+                    pass
+                else:
+                    self.unloading_check_id = self.robot_status['operating_order']['id']
 
-                # log 기록
-                self.logger.timestamp_unloading['confirm_time'] = now()
-                self.logger.insert_log(self.logger.timestamp_unloading)
-                self.departure_info['order_ids'] = self.departure_info['order_ids'] + order_id
-                self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
+                    host = 'localhost'
+                    user = 'root'
+                    passwd = 'pass'
+                    dbname = 'orderdb'
+                    cnx = mysql.connector.connect(host=host, user=user, password=passwd,
+                                                  database=dbname, auth_plugin='mysql_native_password')
+                    cursor = cnx.cursor()
 
-                self.unloading_complete_flag_lock.acquire()
-                self.unloading_complete_flag = True
-                self.unloading_complete_flag_lock.release()
+                    r_r = 0
+                    r_g = 0
+                    r_b = 0
+                    for id in order_id:
+                        query = f"SELECT required_red, required_green, required_blue FROM orders WHERE id={id} and exp_id={self.logger.exp_id};"
+                        cursor.execute(query)
+                        r_item = cursor.fetchall()[0]
+                        r_r += r_item[0]
+                        r_g += r_item[1]
+                        r_b += r_item[2]
+                    if r_r < items['r'] or r_g < items['g'] or r_b < items['b']:
+                        self.unloading_complete_flag = True
+                        self.fulfill_order_flag = False
+                        self.update_inventory_flag = False
+                        return 'Just passing by..'
+                    else:
+                        self.logger.timestamp_unloading['connect_time'] = now()
+                        self.logger.timestamp_unloading['num_item'] = sum_item(items)
 
-                self.fulfill_order_flag_lock.acquire()
-                self.fulfill_order_flag = True
-                self.fulfill_order_flag_lock.release()
+            return render_template('unloading.html',
+                                   current_order=current_order,
+                                   upcoming=upcoming, n_upcoming=n_upcoming,
+                                   complete=complete)
 
-            return render_template('unloading_success.html', order_id=order_id, address=address)
+        # @app.route('/unloading-success')
+        # def change_flags_unloading():
+        #
+        #     order_id = self.robot_status['operating_order']['orderid']
+        #     address = self.robot_status['operating_order']['address']
+        #
+        #     if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
+        #         pass
+        #     else:
+        #         self.unloading_complete_id = self.robot_status['operating_order']['id']
+        #
+        #         # log 기록
+        #         self.logger.timestamp_unloading['confirm_time'] = now()
+        #         self.logger.insert_log(self.logger.timestamp_unloading)
+        #         self.departure_info['order_ids'] = self.departure_info['order_ids'] + order_id
+        #         self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
+        #
+        #         self.unloading_complete_flag_lock.acquire()
+        #         self.unloading_complete_flag = True
+        #         self.unloading_complete_flag_lock.release()
+        #
+        #         self.fulfill_order_flag_lock.acquire()
+        #         self.fulfill_order_flag = True
+        #         self.fulfill_order_flag_lock.release()
+        #
+        #     return render_template('unloading_success.html', order_id=order_id, address=address)
 
         @app.route('/monitor')
         def monitoring():
@@ -882,7 +931,7 @@ class ControlCenter:
                     'current_basket': None,
                     'operating_orderset': {'id':None, 'path':None, 'item': None, 'dumporders':[]},
                     'operating_order': {'id':None, 'address':None, 'item': None},
-                    'orderset_id_list': [],
+                    'next_orderset': {'id': None, 'path': None, 'item': None},
                     'ping': None,
                     'log_time': None
                 }
