@@ -501,6 +501,21 @@ class ControlCenter:
                     self.schedule_inventory_g.value = next_inventory['g']
                     self.schedule_inventory_b.value = next_inventory['b']
                     self.schedule_inventory_lock.release()
+                elif self.operating_orderset['id'] != 99999999:
+                    prev_orderset = self.operating_orderset
+                    self.schedule_direction.value = prev_orderset['last_direction']
+
+                    next_inventory = {'r': 25 - prev_orderset['item']['r'],
+                                      'g': 25 - prev_orderset['item']['g'],
+                                      'b': 25 - prev_orderset['item']['b']
+                                      }
+
+                    self.schedule_inventory_lock.acquire()
+                    self.schedule_inventory_r.value = next_inventory['r']
+                    self.schedule_inventory_g.value = next_inventory['g']
+                    self.schedule_inventory_b.value = next_inventory['b']
+                    self.schedule_inventory_lock.release()
+
 
                 self.pending_df = self.pending_df.reset_index(drop=True)
                 pdf = copy.deepcopy(self.pending_df)
@@ -717,9 +732,11 @@ class ControlCenter:
         @app.route('/loading')
         def loadingworker():
             op_item = self.robot_status['operating_orderset']['item']
-            next_items = [os['item'] for os in self.orderset_queue]
-            while len(next_items) < self.QUEUE_SIZE:
-                next_items.append({'r':0, 'g':0, 'b':0})
+            # next_items = [os['item'] for os in self.orderset_queue]
+            # while len(next_items) < self.QUEUE_SIZE:
+            #     next_items.append({'r':0, 'g':0, 'b':0})
+
+            ordersets = [self.operating_orderset]+self.orderset_queue
 
             self.departure_info['num_item'] += sum_item(op_item)
 
@@ -742,7 +759,7 @@ class ControlCenter:
                         'total_profit': 0
                     }
 
-            return render_template('loading.html', items=op_item) #item1 = items[0], item2=items[1])
+            return render_template('loading.html', items=ordersets)
 
         @app.route('/loading-success')
         def change_flags_loading():
@@ -771,9 +788,6 @@ class ControlCenter:
 
             items = self.robot_status['operating_order']['item']
             order_id = self.robot_status['operating_order']['orderid']
-            address = self.robot_status['operating_order']['address']
-            basket = self.robot_status['current_basket']
-            same = ''
 
             if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
                 pass
@@ -784,7 +798,6 @@ class ControlCenter:
                 user = 'root'
                 passwd = 'pass'
                 dbname = 'orderdb'
-
                 cnx = mysql.connector.connect(host=host, user=user, password=passwd,
                                               database=dbname, auth_plugin='mysql_native_password')
                 cursor = cnx.cursor()
@@ -807,10 +820,10 @@ class ControlCenter:
                 else:
                     self.logger.timestamp_unloading['connect_time'] = now()
                     self.logger.timestamp_unloading['num_item'] = sum_item(items)
-                    if basket['r']==items['r'] and basket['g']==items['g'] and basket['b']==items['b']:
-                        same = 'same'
-                    
-                    return render_template('unloading.html', items=items, order_id=order_id, address=address, same=same)
+
+                    return render_template('unloading.html',
+                                           operating_order_id=self.robot_status['operating_order']['id'],
+                                           operating_orderset=self.robot_status['operating_orderset'])
 
         @app.route('/unloading-success')
         def change_flags_unloading():
