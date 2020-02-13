@@ -802,7 +802,10 @@ class ControlCenter:
 
             current_order = self.robot_status['operating_order']
             current_orderset = self.robot_status['operating_orderset']['dumporders']
-            upcoming = current_orderset[current_orderset.index(current_order)+1:]
+            try:
+                upcoming = current_orderset[current_orderset.index(current_order)+1:]
+            except ValueError:
+                upcoming = []
             n_upcoming = len(upcoming)
 
             if 'confirm' in request.form:
@@ -887,7 +890,7 @@ class ControlCenter:
                     'current_basket': None,
                     'operating_orderset': {'id':None, 'path':None, 'item': None, 'dumporders':[]},
                     'operating_order': {'id':None, 'address':None, 'item': None},
-                    'next_orderset': {'id': None, 'path': None, 'item': None},
+                    'orderset_id_list': [],
                     'ping': None,
                     'log_time': None
                 }
@@ -937,7 +940,7 @@ class ControlCenter:
                       f"|  └ dumporders_id ----------: {[dumporder['id'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
                       f"|  └ dumporders_address +++++: {[dumporder['address'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
                       f"|  └ dumporders_item --------: {[dumporder['item'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
-                      # f"| orderset_id_list  +++++++++: {robot_status_print['orderset_id_list']}",
+                      f"| orderset_id_list  +++++++++: {robot_status_print['orderset_id_list']}",
 
                       f'## ====================================================================== ##',
 
