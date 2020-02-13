@@ -827,7 +827,10 @@ class ControlCenter:
 
             current_order = self.robot_status['operating_order']
             current_orderset = self.robot_status['operating_orderset']['dumporders']
-            upcoming = current_orderset[current_orderset.index(current_order)+1:]
+            try:
+                upcoming = current_orderset[current_orderset.index(current_order)+1:]
+            except ValueError:
+                upcoming = []
             n_upcoming = len(upcoming)
 
             if 'confirm' in request.form:
