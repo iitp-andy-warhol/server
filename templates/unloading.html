@@ -42,7 +42,7 @@
                 <td>{{ current_order['item']['g'] }}</td>
                 <td>{{ current_order['item']['b'] }}</td>
                 <td>
-                    {% if complete == 0 %}
+                    {% if complete != 1 %}
                         <form method="POST">
                         <button class="btn btn-warning btn-lg" name="confirm" id="confirmButton" type="submit">Confirm</button>
                         </form>
@@ -67,9 +67,15 @@
                 <th scope="col" style="width: 20%; color:#2ECC71;">Green</th>
                 <th scope="col" style="width: 20%; color:#03A9F4;">Blue</th>
                 <th style="width: 20%">
-                    <form method="POST">
-                        <button class="btn btn-secondary btn-lg" name="skip" id="skipButton" type="submit">Skip</button>
-                    </form>
+                    {% if complete != -1 %}
+                        <form method="POST">
+                        <button class="btn btn-primary btn-lg" name="skip" id="skipButton" type="submit">Skip</button>
+                        </form>
+                    {% else %}
+                        <form method="GET">
+                            Message Sent
+                        </form>
+                    {% endif %}
                 </th>
             </tr>
         </thead>

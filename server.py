@@ -801,7 +801,7 @@ class ControlCenter:
             order_id = self.robot_status['operating_order']['orderid']
 
             current_order = self.robot_status['operating_order']
-            current_orderset = self.robot_status['operating_orderset']['dumporders']
+            current_orderset = self.robot_status['operating_orderset']['dumporders'][:-1]
             try:
                 upcoming = current_orderset[current_orderset.index(current_order)+1:]
             except ValueError:
@@ -829,6 +829,7 @@ class ControlCenter:
                     self.fulfill_order_flag = True
                     self.fulfill_order_flag_lock.release()
             elif 'skip' in request.form:
+                complete = -1
                 self.unloading_complete_flag_lock.acquire()
                 self.unloading_complete_flag = True
                 self.unloading_complete_flag_lock.release()
