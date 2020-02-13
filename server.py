@@ -15,7 +15,7 @@ from scheduler import *
 import copy
 import operator
 
-from flask import request
+from flask import request, redirect
 
 def getdb(exp_id, cursor, pending_df_colname, address_dict):
     query = f"SELECT {', '.join(pending_df_colname)} " + f"FROM orders WHERE pending = 1 and exp_id = {exp_id}"
@@ -805,32 +805,6 @@ class ControlCenter:
             upcoming = current_orderset[current_orderset.index(current_order)+1:]
             n_upcoming = len(upcoming)
 
-            if n_upcoming == 0:
-                time.sleep(3)
-                complete = 1
-                if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
-                    pass
-                else:
-                    self.unloading_complete_id = self.robot_status['operating_order']['id']
-
-                    # log 기록
-                    self.logger.timestamp_unloading['confirm_time'] = now()
-                    self.logger.insert_log(self.logger.timestamp_unloading)
-                    self.departure_info['order_ids'] = self.departure_info['order_ids'] + order_id
-                    self.departure_info['total_profit'] += self.robot_status['operating_order']['profit']
-
-                    self.unloading_complete_flag_lock.acquire()
-                    self.unloading_complete_flag = True
-                    self.unloading_complete_flag_lock.release()
-
-                    self.fulfill_order_flag_lock.acquire()
-                    self.fulfill_order_flag = True
-                    self.fulfill_order_flag_lock.release()
-                return render_template('unloading.html',
-                                       current_order=current_order,
-                                       upcoming=upcoming, n_upcoming=n_upcoming,
-                                       complete=complete)
-
             if 'confirm' in request.form:
                 complete = 1
                 if self.robot_status['operating_order']['id'] in [self.unloading_complete_id, 99999]:
@@ -851,6 +825,10 @@ class ControlCenter:
                     self.fulfill_order_flag_lock.acquire()
                     self.fulfill_order_flag = True
                     self.fulfill_order_flag_lock.release()
+            elif 'skip' in request.form:
+                self.unloading_complete_flag_lock.acquire()
+                self.unloading_complete_flag = True
+                self.unloading_complete_flag_lock.release()
             else:
                 complete = 0
                 if self.robot_status['operating_order']['id'] in [self.unloading_check_id, 99999]:
@@ -889,6 +867,7 @@ class ControlCenter:
                                    current_order=current_order,
                                    upcoming=upcoming, n_upcoming=n_upcoming,
                                    complete=complete)
+
 
         @app.route('/monitor')
         def monitoring():
@@ -958,7 +937,7 @@ class ControlCenter:
                       f"|  └ dumporders_id ----------: {[dumporder['id'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
                       f"|  └ dumporders_address +++++: {[dumporder['address'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
                       f"|  └ dumporders_item --------: {[dumporder['item'] for dumporder in robot_status_print['operating_orderset']['dumporders']]}",
-                      f"| orderset_id_list  +++++++++: {robot_status_print['orderset_id_list']}",
+                      # f"| orderset_id_list  +++++++++: {robot_status_print['orderset_id_list']}",
 
                       f'## ====================================================================== ##',
 
