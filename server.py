@@ -525,6 +525,27 @@ class ControlCenter:
                     self.schedule_inventory_b.value = next_inventory['b']
                     self.schedule_inventory_lock.release()
 
+                    # send한 오더셋 정보  sended_orders에 추가
+                if self.new_orderset_sended_flag:
+
+                    item_dict = {}
+                    for do in self.just_sended_orderset['dumporders']:
+                        for po in do['partial']:
+                            try:
+                                item_dict[po['id']] = tuple(map(operator.add, item_dict[po['id']],
+                                                                (po['item']['r'], po['item']['g'], po['item']['b'])))
+                            except:
+                                item_dict[po['id']] = (po['item']['r'], po['item']['g'], po['item']['b'])
+
+                    for id in list(item_dict):
+                        try:
+                            self.sended_orders[id] = tuple(map(operator.add, self.sended_orders[id], item_dict[id]))
+                        except:
+                            self.sended_orders[id] = item_dict[id]
+
+                    self.new_orderset_sended_flag_lock.acquire()
+                    self.new_orderset_sended_flag = False
+                    self.new_orderset_sended_flag_lock.release()
 
                 self.pending_df = self.pending_df.reset_index(drop=True)
                 pdf = copy.deepcopy(self.pending_df)
@@ -536,7 +557,8 @@ class ControlCenter:
                         pdf.loc[idx, 'required_blue'] -= self.sended_orders[id][2]
 
                         if pdf.loc[idx, 'required_red'] < 0 or pdf.loc[idx, 'required_green'] < 0 or\
-                                pdf.loc[idx, 'required_blue'] < 0:
+                                pdf.loc[idx, 'required_blue'] < 0 \
+                                or (pdf.loc[idx, 'required_red'] ==0 and pdf.loc[idx, 'required_green'] == 0 and pdf.loc[idx, 'required_blue'] == 0):
                             pdf = pdf.drop(idx)
                     else:
                         self.sended_orders.pop(id)
@@ -576,26 +598,26 @@ class ControlCenter:
                     self.send_next_orderset_flag = True
                     self.send_next_orderset_flag_lock.release()
 
-            # send한 오더셋 정보  sended_orders에 추가
-            if self.new_orderset_sended_flag:
-
-                item_dict = {}
-                for do in self.just_sended_orderset['dumporders']:
-                    for po in do['partial']:
-                        try:
-                            item_dict[po['id']] = tuple(map(operator.add, item_dict[po['id']], (po['item']['r'],po['item']['g'],po['item']['b'])))
-                        except:
-                            item_dict[po['id']] = (po['item']['r'], po['item']['g'], po['item']['b'])
-
-                for id in list(item_dict):
-                    try:
-                        self.sended_orders[id] = tuple(map(operator.add, self.sended_orders[id], item_dict[id]))
-                    except:
-                        self.sended_orders[id] = item_dict[id]
-
-                self.new_orderset_sended_flag_lock.acquire()
-                self.new_orderset_sended_flag = False
-                self.new_orderset_sended_flag_lock.release()
+            # # send한 오더셋 정보  sended_orders에 추가
+            # if self.new_orderset_sended_flag:
+            #
+            #     item_dict = {}
+            #     for do in self.just_sended_orderset['dumporders']:
+            #         for po in do['partial']:
+            #             try:
+            #                 item_dict[po['id']] = tuple(map(operator.add, item_dict[po['id']], (po['item']['r'],po['item']['g'],po['item']['b'])))
+            #             except:
+            #                 item_dict[po['id']] = (po['item']['r'], po['item']['g'], po['item']['b'])
+            #
+            #     for id in list(item_dict):
+            #         try:
+            #             self.sended_orders[id] = tuple(map(operator.add, self.sended_orders[id], item_dict[id]))
+            #         except:
+            #             self.sended_orders[id] = item_dict[id]
+            #
+            #     self.new_orderset_sended_flag_lock.acquire()
+            #     self.new_orderset_sended_flag = False
+            #     self.new_orderset_sended_flag_lock.release()
 
             # inventory 갱신
             if self.update_inventory_flag:
@@ -747,7 +769,9 @@ class ControlCenter:
         @app.route('/loading', methods=['GET', 'POST'])
         def loadingworker():
             op_item = self.robot_status['operating_orderset']['item']
-            ordersets = [self.operating_orderset] + self.orderset_queue
+            current_orderset = self.robot_status['operating_orderset']
+
+            upcoming = self.orderset_queue
 
             if 'confirm' in request.form:
                 complete = 1
@@ -791,9 +815,9 @@ class ControlCenter:
                             'num_item': 0,
                             'total_profit': 0
                         }
-            n_orders = len(ordersets)
-            return render_template('loading.html', orders=ordersets,
-                                   n_orders=n_orders, complete=complete)
+            return render_template('loading.html', current_os=current_orderset,
+                                   upcoming=upcoming,
+                                   n_upcoming=len(upcoming), complete=complete)
 
         @app.route('/unloading', methods=['GET', 'POST'])
         def unloadingworker():
@@ -862,6 +886,7 @@ class ControlCenter:
                         self.unloading_complete_flag = True
                         self.fulfill_order_flag = False
                         self.update_inventory_flag = False
+                        self.unloading_complete_id = self.robot_status['operating_order']['id']
                         return 'Just passing by..'
                     else:
                         self.logger.timestamp_unloading['connect_time'] = now()
@@ -994,7 +1019,7 @@ class ControlCenter:
         while self.logger.num_pending == 0:
             time.sleep(1)
 
-        time.sleep(60)
+        time.sleep(3600)
 
         while self.logger.num_pending != 0: # 또는 제한시간 종료조건 추가
             time.sleep(1)

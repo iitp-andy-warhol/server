@@ -7,7 +7,7 @@ import robotstatus as rs
 from datetime import datetime
 
 
-mid_ip = '172.20.10.2'
+mid_ip = '128.237.203.49'
 
 
 def send_robot_status(server, client):
@@ -182,7 +182,7 @@ def receive_robot_command(server, client):
                 command['path'] = tuple(map(int, operating_orderset['path']))
             command['path_id'] = operating_orderset['id']
             command['message'] = massage['massage']
-            command['message_id'] = counter
+            command['message_id'] = counter - operating_orderset['id']
             if command['message'] == 'loading_complete' or command['message'] == 'unloading_complete':
                 if action == "loading" or action == "unloading":
                     wait_flag = True
